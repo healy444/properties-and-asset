@@ -29,11 +29,13 @@
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
   display: flex;
   overflow: hidden;
+  box-sizing: border-box;
 }
 
 .login-left {
   position: relative;
-  flex: 1;
+  flex: 0 0 50%;
+  min-width: 0;
   background: #234b9b;
   overflow: hidden;
 }
@@ -49,8 +51,7 @@
 .login-slide-mobile {
   display: none;
   object-fit: contain;
-  top: -28px;
-  transform: scale(1.05);
+  inset: clamp(8px, 3vw, 18px);
 }
 
 .login-slide-desktop {
@@ -65,36 +66,36 @@
 
 .login-left-caption {
   position: absolute;
-  left: 32px;
-  bottom: 64px;
+  left: clamp(16px, 3vw, 32px);
+  bottom: clamp(24px, 6vh, 64px);
   color: #ffffff;
-  max-width: 320px;
+  max-width: min(70%, 320px);
 }
 
 .login-left-caption h2 {
   margin: 0;
-  font-size: 22px;
+  font-size: clamp(18px, 2vw, 22px);
   font-weight: 600;
 }
 
 .login-left-caption p {
   margin: 8px 0 0;
-  font-size: 14px;
+  font-size: clamp(12px, 1.4vw, 14px);
   opacity: 0.8;
 }
 
 .login-dots {
   position: absolute;
   left: 50%;
-  bottom: 20px;
+  bottom: clamp(12px, 2.5vh, 20px);
   display: flex;
   gap: 8px;
   transform: translateX(-50%);
 }
 
 .login-dots button {
-  width: 10px;
-  height: 8px;
+  width: clamp(8px, 1.5vw, 10px);
+  height: clamp(6px, 1.2vw, 8px);
   border-radius: 999px;
   border: none;
   background: rgba(255, 255, 255, 0.7);
@@ -102,22 +103,26 @@
 }
 
 .login-dots button.active {
-  width: 24px;
+  width: clamp(18px, 3.5vw, 24px);
   background: #facc15;
 }
 
 .login-right {
-  flex: 1;
+  flex: 0 0 50%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
   padding: clamp(16px, 3vw, 32px);
   gap: clamp(12px, 2vw, 24px);
+  box-sizing: border-box;
 }
 
 .login-form {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .login-header {
@@ -152,6 +157,8 @@
   border-radius: 10px;
   background: linear-gradient(90deg, #2563eb, #4f46e5);
   border: none;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .login-button:hover,
@@ -172,7 +179,7 @@
   }
 
   .login-left {
-    height: 200px;
+    height: clamp(180px, 30vh, 220px);
     border-radius: 24px;
     margin: 12px;
   }
@@ -212,10 +219,6 @@
 @media (max-height: 700px) {
   .login-card {
     height: min(520px, calc(100vh - 32px));
-  }
-
-  .login-left {
-    height: 180px;
   }
 
   .login-header img {

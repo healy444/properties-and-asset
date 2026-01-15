@@ -5,23 +5,31 @@ import { useAuth } from '../context/AuthContext';
 import { useThemeMode } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import brandLogoLight from '../assets/brand-logo.png';
-import slide1 from '../assets/carousel/desktop/1.png';
-import slide2 from '../assets/carousel/desktop/2.png';
-import slide3 from '../assets/carousel/desktop/3.png';
-import mobileSlide1 from '../assets/carousel/mobile/4.png';
-import mobileSlide2 from '../assets/carousel/mobile/5.png';
-import mobileSlide3 from '../assets/carousel/mobile/6.png';
 import './LoginPage.css';
 
 const LoginPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [activeSlide, setActiveSlide] = useState(0);
-    const { login } = useAuth();
+    const { login, isAuthenticated } = useAuth();
     const { setMode } = useThemeMode();
     const navigate = useNavigate();
 
-    const carouselImages = [slide1, slide2, slide3];
-    const mobileCarouselImages = [mobileSlide1, mobileSlide2, mobileSlide3];
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [isAuthenticated, navigate]);
+
+    const carouselImages = [
+        '/carousel/desktop/1.png',
+        '/carousel/desktop/2.png',
+        '/carousel/desktop/3.png',
+    ];
+    const mobileCarouselImages = [
+        '/carousel/mobile/4.png',
+        '/carousel/mobile/5.png',
+        '/carousel/mobile/6.png',
+    ];
     const carouselCopy = [
         {
             title: 'Trusted Asset Oversight',

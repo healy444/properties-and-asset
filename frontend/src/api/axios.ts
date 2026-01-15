@@ -1,8 +1,11 @@
 import axios from 'axios';
 import type { AxiosRequestConfig } from 'axios';
 
+const apiBaseUrl = import.meta.env.VITE_API_URL || '/api';
+const backendOrigin = apiBaseUrl.startsWith('http') ? apiBaseUrl.replace(/\/api\/?$/, '') : '';
+
 const csrfClient = axios.create({
-  baseURL: '',
+  baseURL: backendOrigin || '',
   withCredentials: true,
   headers: {
     'X-Requested-With': 'XMLHttpRequest',
@@ -11,7 +14,7 @@ const csrfClient = axios.create({
 });
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: apiBaseUrl,
   withCredentials: true,
   // Ensure XSRF header is sent on cross-origin requests (SPA -> API on different port).
   withXSRFToken: true,
@@ -38,18 +41,12 @@ const refreshCsrfCookie = async () => {
 
 api.interceptors.request.use((config) => {
   const authToken = localStorage.getItem('auth_token');
-  if (authToken && !config.headers?.Authorization) {
-    config.headers = {
-      ...config.headers,
-      Authorization: `Bearer ${authToken}`,
-    };
+  if (authToken && config.headers && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${authToken}`;
   }
   const token = readCookie('XSRF-TOKEN');
-  if (token && !config.headers?.['X-XSRF-TOKEN']) {
-    config.headers = {
-      ...config.headers,
-      'X-XSRF-TOKEN': token,
-    };
+  if (token && config.headers && !config.headers['X-XSRF-TOKEN']) {
+    config.headers['X-XSRF-TOKEN'] = token;
   }
   return config;
 });
