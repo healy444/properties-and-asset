@@ -1,190 +1,261 @@
-import React from 'react';
-import { Card, Col, Row, Statistic, Typography, Space, Table, Tag, List, Badge } from 'antd';
+﻿import React from 'react';
+import { Card, Col, Row, Statistic, Table, Typography, Spin, List, Tag, theme } from 'antd';
+import { ShopOutlined, AlertOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { Pie, Column } from '@ant-design/plots';
-import { useQuery } from '@tanstack/react-query';
-import api from '../api/axios';
-import { useNavigate } from 'react-router-dom';
-import { ArrowUpOutlined, ArrowDownOutlined, DatabaseOutlined, DollarOutlined, HistoryOutlined, AlertOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
+import { useDashboardStats } from '../hooks/useDashboardStats';
 
 const { Title, Text } = Typography;
 
 const DashboardPage: React.FC = () => {
-    const navigate = useNavigate();
+    const { data: stats, isLoading } = useDashboardStats();
+    const { token } = theme.useToken();
 
-    const { data: metrics, isLoading } = useQuery({
-        queryKey: ['dashboard-metrics'],
-        queryFn: () => api.get('/dashboard/metrics').then(res => res.data),
-    });
+    if (isLoading || !stats) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', height: '100%', alignItems: 'center' }}>
+                <Spin size="large" tip="Loading dashboard metrics..." />
+            </div>
+        );
+    }
 
-    if (isLoading) return <div>Loading Summary...</div>;
-
-    const totals = metrics?.totals || {};
-    const byStatus = metrics?.by_status || [];
-    const byBranch = metrics?.by_branch || [];
-    const byCategory = metrics?.by_category || [];
-    const alerts = metrics?.alerts || {};
-    const recentActivity = metrics?.recent_activity || [];
-
-    // Chart Configs
-    const statusPieConfig = {
-        appendPadding: 10,
-        data: byStatus,
+    // Chart configs
+    const conditionConfig = {
+        data: stats.by_condition,
         angleField: 'count',
-        colorField: 'status',
+        colorField: 'condition',
+        innerRadius: 0.6,
         radius: 0.8,
         label: {
-            type: 'outer',
-            content: '{name}: {value}',
+            text: 'count', // v2 syntax check? using simple label for now
+            position: 'outside',
         },
-        interactions: [{ type: 'element-active' }],
-        onEvent: (chart: any, event: any) => {
-            if (event.type === 'element:click') {
-                const data = event.data?.data;
-                if (data) {
-                    const statusMap: any = { 'Draft': 'draft', 'Active': 'active', 'Pending Deletion': 'pending_deletion' };
-                    navigate(`/assets?status=${statusMap[data.status]}`);
-                }
-            }
-        }
+        legend: {
+            color: {
+                title: false,
+                position: 'bottom',
+                rowPadding: 5,
+            },
+        },
+        height: 300,
     };
 
-    const branchColumnConfig = {
-        data: byBranch,
-        xField: 'branch',
-        yField: 'count',
-        label: {
-            position: 'middle',
-            style: { fill: '#FFFFFF', opacity: 0.6 },
-        },
-        onEvent: (chart: any, event: any) => {
-            if (event.type === 'element:click') {
-                // Note: In real app, we'd need the ID, but for demo we filter by name or mapping
-                // For simplicity, navigate to assets
-                navigate('/assets');
-            }
-        }
-    };
-
-    const categoryPieConfig = {
-        appendPadding: 10,
-        data: byCategory,
+    const categoryConfig = {
+        data: stats.by_category,
         angleField: 'count',
-        colorField: 'category',
-        radius: 0.7,
+        colorField: 'name',
         innerRadius: 0.6,
+        radius: 0.8,
         label: {
-            type: 'inner',
-            offset: '-50%',
-            content: '{value}',
-            style: { textAlign: 'center', fontSize: 14 },
+            text: 'count',
+            position: 'outside',
         },
-        interactions: [{ type: 'element-selected' }, { type: 'element-active' }],
+        legend: {
+            color: {
+                title: false,
+                position: 'bottom',
+                rowPadding: 5,
+            },
+        },
+        height: 300,
+    };
+
+    const branchConfig = {
+        data: stats.by_branch,
+        xField: 'name',
+        yField: 'count',
+        color: token.colorPrimary,
+        label: {
+            text: 'count',
+            textBaseline: 'bottom',
+        },
+        tooltip: {
+            title: 'name',
+            items: [{ channel: 'y' }]
+        },
+        height: 300,
+    };
+
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat('en-PH', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        }).format(value);
+    };
+
+    const sectionLabelStyle: React.CSSProperties = {
+        display: 'block',
+        fontSize: 12,
+        letterSpacing: 0.6,
+        textTransform: 'uppercase',
+        color: token.colorTextSecondary,
+        marginBottom: 8,
+    };
+
+    const elevatedCardStyle: React.CSSProperties = {
+        border: `1px solid ${token.colorBorderSecondary}`,
+        borderRadius: 14,
+        boxShadow: '0 10px 24px rgba(0, 0, 0, 0.08)',
+        background: token.colorBgContainer,
+    };
+
+    const metricsGridStyle: React.CSSProperties = {
+        display: 'grid',
+        gap: 16,
+        gridTemplateColumns: 'repeat(5, minmax(180px, 1fr))',
+        minWidth: 900,
     };
 
     return (
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-            <Title level={2}>Dashboard Overview</Title>
+        <div style={{ padding: '8px 12px 24px' }}>
 
-            {/* Top Stats */}
-            <Row gutter={[16, 16]}>
-                <Col span={6}>
-                    <Card bordered={false} className="stat-card">
+            {/* Top Row: Key Metrics */}
+            <div style={sectionLabelStyle}>Key metrics</div>
+            <div style={{ overflowX: 'auto', background: token.colorBgContainer, borderRadius: 14, padding: 6 }}>
+                <div style={metricsGridStyle}>
+                    <Card bordered={false} hoverable style={elevatedCardStyle} bodyStyle={{ padding: '16px 18px' }}>
                         <Statistic
-                            title="Total Active Assets"
-                            value={totals.active_assets}
-                            prefix={<DatabaseOutlined />}
-                            valueStyle={{ color: '#1677ff' }}
+                            title="Total Assets"
+                            value={stats.total_assets}
+                            prefix={<ShopOutlined />}
                         />
+                        <div style={{ marginTop: 10, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
+                            <Tag color="success">Active: {stats.active_assets}</Tag>
+                            <Tag color="default">Inactive: {stats.inactive_assets}</Tag>
+                        </div>
                     </Card>
-                </Col>
-                <Col span={6}>
-                    <Card bordered={false} className="stat-card">
+                    <Card bordered={false} hoverable style={elevatedCardStyle} bodyStyle={{ padding: '16px 18px' }}>
                         <Statistic
                             title="Total Acquisition Cost"
-                            value={totals.total_cost}
-                            precision={2}
-                            prefix={<Text style={{ fontSize: 20 }}>₱</Text>}
-                            valueStyle={{ color: '#3f8600' }}
+                            value={stats.acquisition_cost}
+                            formatter={(val) => formatCurrency(Number(val))}
+                            prefix="₱"
                         />
+                        <Text type="secondary" style={{ fontSize: 12 }}>Total asset investment</Text>
                     </Card>
-                </Col>
-                <Col span={6}>
-                    <Card bordered={false} className="stat-card">
+                    <Card bordered={false} hoverable style={elevatedCardStyle} bodyStyle={{ padding: '16px 18px' }}>
+                        <Statistic
+                            title="Total Depreciation"
+                            value={stats.total_depreciation}
+                            valueStyle={{ color: '#cf1322' }}
+                            formatter={(val) => formatCurrency(Number(val))}
+                        />
+                        <Text type="secondary" style={{ fontSize: 12 }}>All-time value reduction</Text>
+                    </Card>
+                    <Card bordered={false} hoverable style={elevatedCardStyle} bodyStyle={{ padding: '16px 18px' }}>
                         <Statistic
                             title="Monthly Depreciation"
-                            value={totals.total_monthly_depreciation}
-                            precision={2}
-                            prefix={<ArrowDownOutlined />}
-                            valueStyle={{ color: '#cf1322' }}
+                            value={stats.monthly_depreciation_expense}
+                            formatter={(val) => formatCurrency(Number(val))}
+                            prefix="₱"
                         />
+                        <Text type="secondary" style={{ fontSize: 12 }}>Current monthly expense</Text>
                     </Card>
-                </Col>
-                <Col span={6}>
-                    <Card bordered={false} className="stat-card">
-                        <Space direction="vertical" style={{ width: '100%' }}>
-                            <Text type="secondary">Condition Alerts</Text>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                <Badge count={alerts.fair} overflowCount={999} style={{ backgroundColor: '#faad14' }}>
-                                    <Tag color="warning" style={{ margin: 0 }}>FAIR</Tag>
-                                </Badge>
-                                <Badge count={alerts.poor} overflowCount={999} style={{ backgroundColor: '#f5222d' }}>
-                                    <Tag color="error" style={{ margin: 0 }}>POOR</Tag>
-                                </Badge>
-                            </div>
-                        </Space>
+                    <Card bordered={false} hoverable style={elevatedCardStyle} bodyStyle={{ padding: '16px 18px' }}>
+                        <Statistic
+                            title="Fully Depreciated (Active)"
+                            value={stats.fully_depreciated_active}
+                            valueStyle={{ color: token.colorSuccess }}
+                        />
+                        <Text type="secondary" style={{ fontSize: 12 }}>Still in use with zero book value</Text>
                     </Card>
-                </Col>
-            </Row>
+                </div>
+            </div>
 
-            {/* Charts Row 1 */}
-            <Row gutter={[16, 16]}>
-                <Col span={12}>
-                    <Card title="Assets by Status (Interact to Filter)" bordered={false}>
-                        <Pie {...statusPieConfig} />
-                    </Card>
-                </Col>
-                <Col span={12}>
-                    <Card title="Assets by Category" bordered={false}>
-                        <Pie {...categoryPieConfig} />
-                    </Card>
-                </Col>
-            </Row>
-
-            {/* Charts Row 2 & Recent Activity */}
-            <Row gutter={[16, 16]}>
-                <Col span={14}>
-                    <Card title="Assets by Branch" bordered={false}>
-                        <Column {...branchColumnConfig} />
-                    </Card>
-                </Col>
-                <Col span={10}>
-                    <Card title="Recent Activity" bordered={false} extra={<HistoryOutlined />}>
+            {/* Second Row: Health Checks */}
+            <div style={{ ...sectionLabelStyle, marginTop: 16 }}>Health checks</div>
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                <Col xs={24} sm={12}>
+                    <Card
+                        title="Assets Near End of Useful Life"
+                        bordered={false}
+                        extra={<AlertOutlined style={{ color: '#faad14' }} />}
+                        style={elevatedCardStyle}
+                        bodyStyle={{ padding: '16px 18px' }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                            <Statistic value={stats.near_end_of_life_count} suffix="assets" valueStyle={{ fontSize: 24 }} />
+                            <Text type="secondary">Review for replacement</Text>
+                        </div>
                         <List
-                            itemLayout="horizontal"
-                            dataSource={recentActivity}
-                            renderItem={(item: any) => (
+                            size="small"
+                            dataSource={stats.near_end_of_life_list}
+                            renderItem={(item) => (
                                 <List.Item>
                                     <List.Item.Meta
-                                        title={<Text strong>{item.action}</Text>}
-                                        description={
-                                            <Space direction="vertical" size={0}>
-                                                <Text type="secondary" style={{ fontSize: '12px' }}>
-                                                    {item.user?.username} • {dayjs(item.created_at).fromNow()}
-                                                </Text>
-                                                <Text style={{ fontSize: '12px' }}>
-                                                    {item.entity_type} {item.entity_id}
-                                                </Text>
-                                            </Space>
-                                        }
+                                        title={<Text strong>{item.model_number}</Text>}
+                                        description={`Purchased: ${item.date_of_purchase}`}
                                     />
+                                    <Tag color="warning">Expiring</Tag>
                                 </List.Item>
                             )}
                         />
                     </Card>
                 </Col>
+                <Col xs={24} sm={12}>
+                    {/* Charts */}
+                    <Card
+                        title="Assets by Condition"
+                        bordered={false}
+                        style={elevatedCardStyle}
+                        bodyStyle={{ padding: '12px 16px 8px' }}
+                    >
+                        <Pie {...conditionConfig} />
+                    </Card>
+                </Col>
             </Row>
-        </Space>
+
+            {/* Third Row: Charts */}
+            <div style={{ ...sectionLabelStyle, marginTop: 16 }}>Distribution</div>
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                <Col xs={24} md={12}>
+                    <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '12px 16px 8px' }}>
+                        <Text type="secondary" style={sectionLabelStyle}>Assets by branch</Text>
+                        <Column {...branchConfig} />
+                    </Card>
+                </Col>
+                <Col xs={24} md={12}>
+                    <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '12px 16px 8px' }}>
+                        <Text type="secondary" style={sectionLabelStyle}>Assets by category</Text>
+                        <Pie {...categoryConfig} />
+                    </Card>
+                </Col>
+            </Row>
+
+            {/* Fourth Row: Lists */}
+            <div style={{ ...sectionLabelStyle, marginTop: 16 }}>Leaderboards</div>
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                <Col xs={24} md={12}>
+                    <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '16px 18px' }}>
+                        <Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>Top 3 Suppliers</Title>
+                        <Table
+                            dataSource={stats.top_suppliers}
+                            rowKey="name"
+                            pagination={false}
+                            columns={[
+                                { title: 'Supplier Name', dataIndex: 'name', key: 'name' },
+                                { title: 'Assets Supplied', dataIndex: 'count', key: 'count', align: 'right' },
+                            ]}
+                            size="small"
+                        />
+                    </Card>
+                </Col>
+                <Col xs={24} md={12}>
+                    <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '16px 18px' }}>
+                        <Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>Top Assigned Users</Title>
+                        <Table
+                            dataSource={stats.top_assigned}
+                            rowKey="assigned_to"
+                            pagination={false}
+                            columns={[
+                                { title: 'User (Assigned To)', dataIndex: 'assigned_to', key: 'assigned_to' },
+                                { title: 'Total Assets', dataIndex: 'count', key: 'count', align: 'right' },
+                            ]}
+                            size="small"
+                        />
+                    </Card>
+                </Col>
+            </Row>
+        </div>
     );
 };
 

@@ -40,7 +40,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/profile/change-password', [ProfileController::class, 'changePassword']);
 
         // Dashboard
-        Route::get('/dashboard/metrics', [DashboardController::class, 'getMetrics']);
+        Route::get('/dashboard/stats', [DashboardController::class, 'stats']);
     });
 
     // Admin Only
