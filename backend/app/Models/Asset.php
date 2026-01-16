@@ -7,6 +7,19 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
 
+/**
+ * @property int $id
+ * @property string|null $asset_code
+ * @property int $branch_id
+ * @property int $category_id
+ * @property int $asset_type_id
+ * @property float $acquisition_cost
+ * @property int $useful_life_months
+ * @property float $monthly_depreciation
+ * @property string $delete_request_status
+ * @property string|null $delete_request_reason
+ * @property bool $is_draft
+ */
 class Asset extends Model
 {
     use HasFactory, SoftDeletes;

@@ -134,6 +134,7 @@
   height: 64px;
   object-fit: contain;
   margin-bottom: 12px;
+  margin-top: 12px;
 }
 
 .login-kicker {
@@ -174,14 +175,12 @@
 
 @media (max-width: 900px) {
   .login-card {
-    flex-direction: column;
-    height: min(520px, calc(100vh - 48px));
+    width: min(520px, 92vw);
+    height: auto;
   }
 
   .login-left {
-    height: clamp(180px, 30vh, 220px);
-    border-radius: 24px;
-    margin: 12px;
+    display: none;
   }
 
   .login-slide-desktop {
@@ -201,6 +200,7 @@
   }
 
   .login-right {
+    flex: 1 1 auto;
     padding: 16px 20px 20px;
   }
 }

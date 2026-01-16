@@ -43,7 +43,7 @@ class ProfileController extends Controller
         $oldValues = $user->getAttributes();
         $user->update($validated);
 
-        $this->auditLogService->logUserUpdate($user, $oldValues, $validated, 'PROFILE_UPDATE');
+        $this->auditLogService->logUserUpdate($user, $oldValues, $validated);
 
         return response()->json([
             'message' => 'Profile updated successfully',
