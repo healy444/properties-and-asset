@@ -126,19 +126,21 @@ const AuditLogPage: React.FC = () => {
             title: 'Details',
             key: 'details',
             render: (log: AuditLog) => (
-                <Button
-                    type="link"
-                    icon={<InfoCircleOutlined />}
-                    onClick={() => Modal.info({
-                        title: 'Log Entry Details',
-                        width: 800,
-                        content: (
-                            <pre style={{ maxHeight: 500, overflow: 'auto' }}>
-                                {JSON.stringify(log, null, 2)}
-                            </pre>
-                        )
-                    })}
-                />
+                <Tooltip title="View details">
+                    <Button
+                        type="link"
+                        icon={<InfoCircleOutlined />}
+                        onClick={() => Modal.info({
+                            title: 'Log Entry Details',
+                            width: 800,
+                            content: (
+                                <pre style={{ maxHeight: 500, overflow: 'auto' }}>
+                                    {JSON.stringify(log, null, 2)}
+                                </pre>
+                            )
+                        })}
+                    />
+                </Tooltip>
             ),
         },
     ];

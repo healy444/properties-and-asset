@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Card, Input, Select, Button, Space, Tag, Typography, message, Badge, Modal, Radio } from 'antd';
-import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, DownloadOutlined, RollbackOutlined } from '@ant-design/icons';
+import { Table, Card, Input, Select, Button, Space, Tag, Typography, message, Badge, Modal, Radio, Upload, Tooltip } from 'antd';
+import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, DownloadOutlined, RollbackOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
@@ -21,8 +21,12 @@ const AssetListPage: React.FC = () => {
     const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null);
     const [drawerVisible, setDrawerVisible] = useState(false);
     const [exportModalVisible, setExportModalVisible] = useState(false);
+    const [importModalVisible, setImportModalVisible] = useState(false);
+    const [templateModalVisible, setTemplateModalVisible] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
     const [exportFormat, setExportFormat] = useState<'csv' | 'xlsx'>('csv');
     const [exportType, setExportType] = useState<'table' | 'sticker'>('table');
+    const [templateFormat, setTemplateFormat] = useState<'csv' | 'xlsx'>('csv');
 
     const initialStatus = searchParams.get('status') || undefined;
 
@@ -30,13 +34,14 @@ const AssetListPage: React.FC = () => {
         page: 1,
         per_page: 10,
         search: '',
-        branch_id: undefined,
-        category_id: undefined,
+        branch_id: undefined as number | undefined,
+        category_id: undefined as number | undefined,
         status: (initialStatus as any) ?? 'active',
         deletion_view: undefined as 'pending' | 'all' | undefined,
     });
 
     const isBranchCustodian = user?.role === 'branch_custodian';
+    const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
     const branchIdForUser = branches.data?.find(b => b.name === user?.branch)?.id;
 
     useEffect(() => {
@@ -57,10 +62,36 @@ const AssetListPage: React.FC = () => {
     });
 
     const approveMutation = useMutation({
-        mutationFn: (id: number) => api.post(`/assets/${id}/approve-delete`),
+        mutationFn: ({ id, reason }: { id: number; reason: string }) =>
+            api.post(`/assets/${id}/approve-delete`, { reason }),
         onSuccess: () => {
             message.success('Asset deletion approved');
             queryClient.invalidateQueries({ queryKey: ['assets'] });
+        },
+        onError: (error: any) => {
+            message.error(error.response?.data?.message || 'Approval failed');
+        },
+    });
+
+    const approveReviewMutation = useMutation({
+        mutationFn: (id: number) => api.post(`/assets/${id}/finalize-draft`),
+        onSuccess: () => {
+            message.success('Asset approved and finalized');
+            queryClient.invalidateQueries({ queryKey: ['assets'] });
+        },
+        onError: (error: any) => {
+            message.error(error.response?.data?.message || 'Approval failed');
+        },
+    });
+
+    const rejectReviewMutation = useMutation({
+        mutationFn: (id: number) => api.post(`/assets/${id}/reject-review`),
+        onSuccess: () => {
+            message.success('Review rejected');
+            queryClient.invalidateQueries({ queryKey: ['assets'] });
+        },
+        onError: (error: any) => {
+            message.error(error.response?.data?.message || 'Rejection failed');
         },
     });
 
@@ -130,6 +161,27 @@ const AssetListPage: React.FC = () => {
         },
         onError: (error: any) => {
             message.error(error.response?.data?.message || 'Export failed');
+        },
+    });
+
+    const importMutation = useMutation({
+        mutationFn: async (file: File) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await api.post('/assets/import', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            return response.data;
+        },
+        onSuccess: (response) => {
+            message.success(response?.message || 'Assets imported successfully');
+            queryClient.invalidateQueries({ queryKey: ['assets'] });
+            setImportModalVisible(false);
+            setImportFile(null);
+        },
+        onError: () => {
+            const fallback = 'Import failed. Please check the template and required columns, then try again.';
+            message.error(fallback);
         },
     });
 
@@ -214,6 +266,27 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
             exportMutation.mutate(exportFormat);
         } else {
             handleStickerExport();
+        }
+    };
+
+    const handleDownloadTemplate = async () => {
+        try {
+            const response = await api.get('/assets/import-template', {
+                params: { format: templateFormat },
+                responseType: 'blob',
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            const timestamp = new Date().toISOString().replace(/[:T]/g, '-').split('.')[0];
+            link.setAttribute('download', `assets_import_template_${timestamp}.${templateFormat}`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            message.success('Template downloaded');
+        } catch (error: any) {
+            message.error(error.response?.data?.message || 'Template download failed');
         }
     };
 
@@ -322,7 +395,16 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                 if (record.delete_request_status === 'rejected') {
                     return <Badge status="warning" text="Deletion Rejected" />;
                 }
-                return record.is_draft ? <Badge status="warning" text="Draft" /> : <Badge status="success" text="Active" />;
+                if (record.is_draft && record.submitted_for_review_at) {
+                    return <Badge status="processing" text={isAdmin ? 'Pending Review' : 'Submitted for Review'} />;
+                }
+                if (record.is_draft) {
+                    return <Badge status="warning" text="Draft" />;
+                }
+                if (record.asset_status === 'inactive') {
+                    return <Badge status="default" text="Inactive" />;
+                }
+                return <Badge status="success" text="Active" />;
             }
         },
         {
@@ -334,6 +416,43 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                 if (isDeleted) {
                     return (
                         <Space>
+                            <Tooltip title="View details">
+                                <Button
+                                    icon={<EyeOutlined />}
+                                    size="small"
+                                    onClick={() => {
+                                        setSelectedAssetId(record.id);
+                                        setDrawerVisible(true);
+                                    }}
+                                />
+                            </Tooltip>
+                            {user?.role === 'super_admin' && (
+                                <Tooltip title="Restore asset">
+                                    <Button
+                                        icon={<RollbackOutlined />}
+                                        size="small"
+                                        type="primary"
+                                        onClick={() =>
+                                            confirm({
+                                                title: 'Restore asset?',
+                                                icon: <ExclamationCircleOutlined />,
+                                                content: 'This will restore the asset and clear its deletion request.',
+                                                onOk() {
+                                                    return restoreMutation.mutateAsync(record.id);
+                                                },
+                                            })
+                                        }
+                                        loading={restoreMutation.isPending}
+                                    />
+                                </Tooltip>
+                            )}
+                        </Space>
+                    );
+                }
+
+                return (
+                    <Space>
+                        <Tooltip title="View details">
                             <Button
                                 icon={<EyeOutlined />}
                                 size="small"
@@ -342,68 +461,91 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                                     setDrawerVisible(true);
                                 }}
                             />
-                            {user?.role === 'super_admin' && (
-                                <Button
-                                    icon={<RollbackOutlined />}
-                                    size="small"
-                                    type="primary"
-                                    onClick={() =>
-                                        confirm({
-                                            title: 'Restore asset?',
-                                            icon: <ExclamationCircleOutlined />,
-                                            content: 'This will restore the asset and clear its deletion request.',
-                                            onOk() {
-                                                return restoreMutation.mutateAsync(record.id);
-                                            },
-                                        })
-                                    }
-                                    loading={restoreMutation.isPending}
-                                />
-                            )}
-                        </Space>
-                    );
-                }
-
-                return (
-                    <Space>
-                        <Button
-                            icon={<EyeOutlined />}
-                            size="small"
-                            onClick={() => {
-                                setSelectedAssetId(record.id);
-                                setDrawerVisible(true);
-                            }}
-                        />
-                        <Button
-                            icon={<EditOutlined />}
-                            size="small"
-                            onClick={() => navigate(`/assets/${record.id}/edit`)}
-                        />
+                        </Tooltip>
+                        <Tooltip title="Edit asset">
+                            <Button
+                                icon={<EditOutlined />}
+                                size="small"
+                                onClick={() => navigate(`/assets/${record.id}/edit`)}
+                            />
+                        </Tooltip>
                         {record.delete_request_status === 'pending' && (user?.role === 'admin' || user?.role === 'super_admin') && (
                             <>
-                                <Button
-                                    icon={<CheckCircleOutlined />}
-                                    size="small"
-                                    type="primary"
-                                    ghost
-                                    onClick={() => approveMutation.mutate(record.id)}
-                                />
-                                <Button
-                                    icon={<CloseCircleOutlined />}
-                                    size="small"
-                                    danger
-                                    ghost
-                                    onClick={() => rejectMutation.mutate(record.id)}
-                                />
+                                <Tooltip title="Approve deletion">
+                                    <Button
+                                        icon={<CheckCircleOutlined />}
+                                        size="small"
+                                        type="primary"
+                                        ghost
+                                        onClick={() => {
+                                            let reason = '';
+                                            confirm({
+                                                title: 'Approve Deletion?',
+                                                icon: <ExclamationCircleOutlined />,
+                                                content: (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                        <div>Provide a reason for approving this deletion.</div>
+                                                        <Input.TextArea
+                                                            autoSize={{ minRows: 3, maxRows: 5 }}
+                                                            placeholder="Reason for approval (required)"
+                                                            onChange={(e) => { reason = e.target.value; }}
+                                                        />
+                                                    </div>
+                                                ),
+                                                okText: 'Approve',
+                                                onOk() {
+                                                    if (!reason || reason.trim().length < 5) {
+                                                        message.error('Please provide a reason (min 5 characters).');
+                                                        return Promise.reject();
+                                                    }
+                                                    return approveMutation.mutateAsync({ id: record.id, reason: reason.trim() });
+                                                },
+                                            });
+                                        }}
+                                    />
+                                </Tooltip>
+                                <Tooltip title="Reject deletion">
+                                    <Button
+                                        icon={<CloseCircleOutlined />}
+                                        size="small"
+                                        danger
+                                        ghost
+                                        onClick={() => rejectMutation.mutate(record.id)}
+                                    />
+                                </Tooltip>
+                            </>
+                        )}
+                        {record.is_draft && record.submitted_for_review_at && isAdmin && (
+                            <>
+                                <Tooltip title="Approve review">
+                                    <Button
+                                        icon={<CheckCircleOutlined />}
+                                        size="small"
+                                        type="primary"
+                                        ghost
+                                        onClick={() => approveReviewMutation.mutate(record.id)}
+                                    />
+                                </Tooltip>
+                                <Tooltip title="Reject review">
+                                    <Button
+                                        icon={<CloseCircleOutlined />}
+                                        size="small"
+                                        danger
+                                        ghost
+                                        onClick={() => rejectReviewMutation.mutate(record.id)}
+                                    />
+                                </Tooltip>
                             </>
                         )}
                         {record.delete_request_status === 'none' && !record.is_draft && (
-                            <Button
-                                icon={<DeleteOutlined />}
-                                size="small"
-                                danger
-                                onClick={() => handleRequestDelete(record.id)}
-                            />
+                            <Tooltip title="Request deletion">
+                                <Button
+                                    icon={<DeleteOutlined />}
+                                    size="small"
+                                    danger
+                                    onClick={() => handleRequestDelete(record.id)}
+                                />
+                            </Tooltip>
                         )}
                     </Space>
                 );
@@ -413,27 +555,44 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
 
     return (
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <Title level={2} style={{ margin: 0 }}>Asset Management</Title>
-                <Button
-                    type="primary"
-                    icon={<PlusOutlined />}
-                    size="large"
-                    onClick={() => navigate('/assets/new')}
-                >
-                    Add New Asset
-                </Button>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        size="large"
+                        onClick={() => navigate('/assets/new')}
+                    >
+                        Add New Asset
+                    </Button>
+                </div>
             </div>
 
             <Card>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                     <div />
-                    <Button
-                        icon={<DownloadOutlined />}
-                        onClick={() => setExportModalVisible(true)}
-                    >
-                        Export
-                    </Button>
+                    <Space>
+                        <Button
+                            icon={<DownloadOutlined />}
+                            onClick={() => setTemplateModalVisible(true)}
+                        >
+                            Template
+                        </Button>
+                        <Button
+                            icon={<UploadOutlined />}
+                            loading={importMutation.isPending}
+                            onClick={() => setImportModalVisible(true)}
+                        >
+                            Import
+                        </Button>
+                        <Button
+                            icon={<DownloadOutlined />}
+                            onClick={() => setExportModalVisible(true)}
+                        >
+                            Export
+                        </Button>
+                    </Space>
                 </div>
                 <Space wrap style={{ marginBottom: 16 }}>
                     <Input
@@ -465,19 +624,33 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                         allowClear
                         options={[
                             { label: 'Active (Default)', value: 'active' },
+                            { label: 'Inactive', value: 'inactive' },
                             { label: 'Draft', value: 'draft' },
-                            ...((user?.role === 'admin' || user?.role === 'super_admin') ? [{ label: 'Deletion Requests / Trash', value: 'deletion' }] : []),
+                            ...((isAdmin || isBranchCustodian) ? [{ label: isAdmin ? 'Pending Review' : 'Submitted for Review', value: 'pending_review' }] : []),
+                            ...(isAdmin ? [{ label: 'Deletion Requests / Trash', value: 'deletion' }] : []),
                         ]}
                         value={
                             params.deletion_view === 'all'
                                 ? 'deletion'
+                                : params.status === 'pending_review'
+                                    ? 'pending_review'
                                 : params.status === 'draft'
                                     ? 'draft'
-                                    : 'active'
+                                    : params.status === 'inactive'
+                                        ? 'inactive'
+                                        : 'active'
                         }
                         onChange={(val) => {
+                            if (val === 'pending_review') {
+                                setParams({ ...params, status: 'pending_review' as any, deletion_view: undefined, page: 1 });
+                                return;
+                            }
                             if (val === 'draft') {
                                 setParams({ ...params, status: 'draft' as any, deletion_view: undefined, page: 1 });
+                                return;
+                            }
+                            if (val === 'inactive') {
+                                setParams({ ...params, status: 'inactive' as any, deletion_view: undefined, page: 1 });
                                 return;
                             }
                             if (val === 'deletion' && (user?.role === 'admin' || user?.role === 'super_admin')) {
@@ -488,6 +661,22 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                             setParams({ ...params, status: 'active' as any, deletion_view: undefined, page: 1 });
                         }}
                     />
+                    <Button
+                        icon={<ReloadOutlined />}
+                        onClick={() => {
+                            setParams(prev => ({
+                                ...prev,
+                                page: 1,
+                                search: '',
+                                branch_id: isBranchCustodian ? branchIdForUser : undefined,
+                                category_id: undefined,
+                                status: 'active' as any,
+                                deletion_view: undefined,
+                            }));
+                        }}
+                    >
+                        Refresh
+                    </Button>
                 </Space>
 
                 <Table
@@ -544,6 +733,73 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                             Exports all filtered assets into a printable tag layout (Letter). Use the browser print dialog to save as PDF.
                         </Typography.Paragraph>
                     )}
+                </Space>
+            </Modal>
+
+            <Modal
+                title="Import Assets"
+                open={importModalVisible}
+                onCancel={() => {
+                    setImportModalVisible(false);
+                    setImportFile(null);
+                }}
+                onOk={() => {
+                    if (!importFile) {
+                        message.error('Please select a file to upload.');
+                        return;
+                    }
+                    importMutation.mutate(importFile);
+                }}
+                okText="Upload"
+                confirmLoading={importMutation.isPending}
+                okButtonProps={{ disabled: !importFile }}
+            >
+                <Space direction="vertical" style={{ width: '100%' }} size="large">
+                    <Upload.Dragger
+                        accept=".csv,.xlsx,.xls"
+                        multiple={false}
+                        beforeUpload={(file) => {
+                            setImportFile(file);
+                            return false;
+                        }}
+                        fileList={importFile ? [{
+                            uid: importFile.name,
+                            name: importFile.name,
+                            status: 'done',
+                        }] : []}
+                        onRemove={() => {
+                            setImportFile(null);
+                            return true;
+                        }}
+                    >
+                        <p className="ant-upload-drag-icon">
+                            <UploadOutlined />
+                        </p>
+                        <p className="ant-upload-text">Drag and drop your file here</p>
+                        <p className="ant-upload-hint">Or click to browse. Accepted formats: CSV, XLSX.</p>
+                    </Upload.Dragger>
+
+                </Space>
+            </Modal>
+
+            <Modal
+                title="Download Template"
+                open={templateModalVisible}
+                onCancel={() => setTemplateModalVisible(false)}
+                onOk={handleDownloadTemplate}
+                okText="Download"
+            >
+                <Space direction="vertical" style={{ width: '100%' }} size="large">
+                    <div>
+                        <div style={{ marginBottom: 8, fontWeight: 500 }}>Choose file format</div>
+                        <Radio.Group
+                            onChange={(e) => setTemplateFormat(e.target.value)}
+                            value={templateFormat}
+                        >
+                            <Radio value="csv">CSV</Radio>
+                            <Radio value="xlsx">XLSX</Radio>
+                        </Radio.Group>
+                    </div>
                 </Space>
             </Modal>
         </Space>

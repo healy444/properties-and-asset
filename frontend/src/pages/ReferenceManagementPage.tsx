@@ -163,7 +163,9 @@ const ReferenceManagementPage: React.FC = () => {
             key: 'actions',
             render: (_: any, record: any) => (
                 <Space>
-                    <Button type="text" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+                    <Tooltip title="Edit">
+                        <Button type="text" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+                    </Tooltip>
                     <Tooltip title={record.is_active ? 'Deactivate' : 'Activate'}>
                         <Button
                             type="text"

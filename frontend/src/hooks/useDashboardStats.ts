@@ -19,6 +19,7 @@ export interface DashboardStats {
     }>;
     by_condition: Array<{ condition: string; count: number }>;
     by_branch: Array<{ name: string; count: number }>;
+    by_branch_stacked: Array<{ parent: string; branch: string; count: number }>;
     by_category: Array<{ name: string; count: number }>;
     top_suppliers: Array<{ name: string; count: number }>;
     top_assigned: Array<{ assigned_to: string; count: number }>;

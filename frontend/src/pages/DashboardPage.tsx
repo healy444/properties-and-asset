@@ -12,6 +12,8 @@ import {
     Legend,
 } from 'chart.js';
 import { useDashboardStats } from '../hooks/useDashboardStats';
+import { useAuth } from '../context/AuthContext';
+import { useThemeMode } from '../context/ThemeContext';
 
 const { Title, Text } = Typography;
 
@@ -20,6 +22,9 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 const DashboardPage: React.FC = () => {
     const { data: stats, isLoading } = useDashboardStats();
     const { token } = theme.useToken();
+    const { user } = useAuth();
+    const isBranchCustodian = user?.role === 'branch_custodian';
+    const { mode } = useThemeMode();
 
     if (isLoading || !stats) {
         return (
@@ -30,21 +35,30 @@ const DashboardPage: React.FC = () => {
     }
 
     // Chart configs
+    const chartLabelColor = mode === 'dark' ? '#ffffff' : token.colorTextSecondary;
     const conditionConfig = {
         data: stats.by_condition,
         angleField: 'count',
         colorField: 'condition',
         innerRadius: 0.45,
         radius: 0.85,
+        theme: mode === 'dark' ? 'dark' : 'light',
         label: {
-            text: 'count', // v2 syntax check? using simple label for now
+            text: 'count',
             position: 'outside',
+            style: {
+                fill: chartLabelColor,
+            },
         },
         legend: {
             color: {
-                title: false,
                 position: 'bottom',
                 rowPadding: 5,
+                label: {
+                    style: {
+                        fill: chartLabelColor,
+                    },
+                },
             },
         },
         height: 300,
@@ -56,15 +70,23 @@ const DashboardPage: React.FC = () => {
         colorField: 'name',
         innerRadius: 0.45,
         radius: 0.85,
+        theme: mode === 'dark' ? 'dark' : 'light',
         label: {
             text: 'count',
             position: 'outside',
+            style: {
+                fill: chartLabelColor,
+            },
         },
         legend: {
             color: {
-                title: false,
                 position: 'bottom',
                 rowPadding: 5,
+                label: {
+                    style: {
+                        fill: chartLabelColor,
+                    },
+                },
             },
         },
         height: 300,
@@ -176,7 +198,7 @@ const DashboardPage: React.FC = () => {
         fontSize: 12,
         letterSpacing: 0.6,
         textTransform: 'uppercase',
-        color: token.colorTextSecondary,
+        color: mode === 'dark' ? '#ffffff' : token.colorTextSecondary,
         marginBottom: 8,
     };
 
@@ -194,8 +216,37 @@ const DashboardPage: React.FC = () => {
         minWidth: 900,
     };
 
+    const dashboardClass = mode === 'dark' ? 'dashboard-page dark' : 'dashboard-page';
+
     return (
-        <div style={{ padding: '8px 12px 24px' }}>
+        <div className={dashboardClass} style={{ padding: '8px 12px 24px' }}>
+            {mode === 'dark' && (
+                <style>{`
+                    /* Target all possible G2/Ant Design Plots legend text elements */
+                    .dashboard-page.dark .g2-legend-item-name,
+                    .dashboard-page.dark .g2-legend-item-value,
+                    .dashboard-page.dark .g2-legend-title,
+                    .dashboard-page.dark .g2-legend-item-text,
+                    .dashboard-page.dark .g2-legend-item-label,
+                    .dashboard-page.dark .g2-legend-item,
+                    .dashboard-page.dark .g2-legend-list-item,
+                    .dashboard-page.dark .g2-legend-list-item span,
+                    .dashboard-page.dark .g2-legend-item span,
+                    .dashboard-page.dark .g2-legend-category-item,
+                    .dashboard-page.dark .g2-legend-marker-text,
+                    .dashboard-page.dark .g2-legend text,
+                    .dashboard-page.dark .g2-legend-item text,
+                    .dashboard-page.dark .g2-legend-list text,
+                    .dashboard-page.dark .g2-legend-category text,
+                    .dashboard-page.dark div[class*="g2-legend"] span,
+                    .dashboard-page.dark div[class*="g2-legend"] div,
+                    .dashboard-page.dark .g2-tooltip-list-item-name,
+                    .dashboard-page.dark .g2-tooltip-list-item-value {
+                        fill: #ffffff !important;
+                        color: #ffffff !important;
+                    }
+                `}</style>
+            )}
 
             {/* Top Row: Key Metrics */}
             <div style={sectionLabelStyle}>Key metrics</div>
@@ -267,52 +318,56 @@ const DashboardPage: React.FC = () => {
                 </Col>
             </Row>
 
-            {/* Third Row: Branch */}
-            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                <Col xs={24}>
-                    <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '12px 16px 8px' }}>
-                        <Text type="secondary" style={sectionLabelStyle}>Assets by branch</Text>
-                        <div style={{ height: 320 }}>
-                            <Bar data={branchChartData} options={branchChartOptions} />
-                        </div>
-                    </Card>
-                </Col>
-            </Row>
+            {!isBranchCustodian && (
+                <>
+                    {/* Third Row: Branch */}
+                    <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                        <Col xs={24}>
+                            <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '12px 16px 8px' }}>
+                                <Text type="secondary" style={sectionLabelStyle}>Assets by branch</Text>
+                                <div style={{ height: 320 }}>
+                                    <Bar data={branchChartData} options={branchChartOptions} />
+                                </div>
+                            </Card>
+                        </Col>
+                    </Row>
 
-            {/* Fourth Row: Lists */}
-            <div style={{ ...sectionLabelStyle, marginTop: 16 }}>Leaderboards</div>
-            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                <Col xs={24} md={12}>
-                    <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '16px 18px' }}>
-                        <Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>Top 5 Suppliers</Title>
-                        <Table
-                            dataSource={stats.top_suppliers}
-                            rowKey="name"
-                            pagination={false}
-                            columns={[
-                                { title: 'Supplier Name', dataIndex: 'name', key: 'name' },
-                                { title: 'Assets Supplied', dataIndex: 'count', key: 'count', align: 'right' },
-                            ]}
-                            size="small"
-                        />
-                    </Card>
-                </Col>
-                <Col xs={24} md={12}>
-                    <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '16px 18px' }}>
-                        <Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>Top Assigned Users</Title>
-                        <Table
-                            dataSource={stats.top_assigned}
-                            rowKey="assigned_to"
-                            pagination={false}
-                            columns={[
-                                { title: 'User (Assigned To)', dataIndex: 'assigned_to', key: 'assigned_to' },
-                                { title: 'Total Assets', dataIndex: 'count', key: 'count', align: 'right' },
-                            ]}
-                            size="small"
-                        />
-                    </Card>
-                </Col>
-            </Row>
+                    {/* Fourth Row: Lists */}
+                    <div style={{ ...sectionLabelStyle, marginTop: 16 }}>Leaderboards</div>
+                    <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                        <Col xs={24} md={12}>
+                            <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '16px 18px' }}>
+                                <Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>Top 5 Suppliers</Title>
+                                <Table
+                                    dataSource={stats.top_suppliers}
+                                    rowKey="name"
+                                    pagination={false}
+                                    columns={[
+                                        { title: 'Supplier Name', dataIndex: 'name', key: 'name' },
+                                        { title: 'Assets Supplied', dataIndex: 'count', key: 'count', align: 'right' },
+                                    ]}
+                                    size="small"
+                                />
+                            </Card>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '16px 18px' }}>
+                                <Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>Top Assigned Users</Title>
+                                <Table
+                                    dataSource={stats.top_assigned}
+                                    rowKey="assigned_to"
+                                    pagination={false}
+                                    columns={[
+                                        { title: 'User (Assigned To)', dataIndex: 'assigned_to', key: 'assigned_to' },
+                                        { title: 'Total Assets', dataIndex: 'count', key: 'count', align: 'right' },
+                                    ]}
+                                    size="small"
+                                />
+                            </Card>
+                        </Col>
+                    </Row>
+                </>
+            )}
         </div>
     );
 };

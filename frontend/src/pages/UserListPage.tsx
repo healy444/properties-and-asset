@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, Button, Tag, Space, Card, Input, Select, Modal, message, Form, Switch } from 'antd';
+import { Table, Button, Tag, Space, Card, Input, Select, Modal, message, Form, Switch, Tooltip } from 'antd';
 import {
     UserAddOutlined,
     SearchOutlined,
@@ -156,23 +156,29 @@ const UserListPage: React.FC = () => {
                 <Space size="middle">
                     {!(currentUser?.role === 'admin' && user.role === 'super_admin') && (
                         <>
-                            <Button
-                                type="text"
-                                icon={<EditOutlined />}
-                                onClick={() => handleEdit(user)}
-                            />
-                            <Button
-                                type="text"
-                                icon={<LockOutlined />}
-                                onClick={() => handleResetPassword(user)}
-                            />
-                            {!(currentUser?.role === 'admin' && user.role === 'admin') && (
+                            <Tooltip title="Edit">
                                 <Button
                                     type="text"
-                                    danger={user.is_active}
-                                    icon={user.is_active ? <StopOutlined /> : <CheckCircleOutlined />}
-                                    onClick={() => toggleStatusMutation.mutate(user.id)}
+                                    icon={<EditOutlined />}
+                                    onClick={() => handleEdit(user)}
                                 />
+                            </Tooltip>
+                            <Tooltip title="Reset password">
+                                <Button
+                                    type="text"
+                                    icon={<LockOutlined />}
+                                    onClick={() => handleResetPassword(user)}
+                                />
+                            </Tooltip>
+                            {!(currentUser?.role === 'admin' && user.role === 'admin') && (
+                                <Tooltip title={user.is_active ? 'Deactivate' : 'Activate'}>
+                                    <Button
+                                        type="text"
+                                        danger={user.is_active}
+                                        icon={user.is_active ? <StopOutlined /> : <CheckCircleOutlined />}
+                                        onClick={() => toggleStatusMutation.mutate(user.id)}
+                                    />
+                                </Tooltip>
                             )}
                         </>
                     )}

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Input, InputNumber, DatePicker, Select, Button, Card, Space, Typography, message, Divider, Checkbox, Collapse } from 'antd';
+import { Form, Input, InputNumber, DatePicker, Select, Button, Card, Space, Typography, message, Divider, Checkbox, Collapse, Tooltip } from 'antd';
 import { SaveOutlined, SendOutlined, ArrowLeftOutlined, RightCircleOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -18,6 +18,7 @@ const AssetFormPage: React.FC = () => {
     const [form] = Form.useForm();
     const { branches, categories, assetTypes, brands, suppliers } = useReferences();
     const [isDraft, setIsDraft] = useState(true);
+    const [submitIntent, setSubmitIntent] = useState<'draft' | 'review' | 'default'>('default');
     const selectedCategoryId = Form.useWatch('category_id', form);
     const isEdit = !!id;
     const { user: currentUser } = useAuth();
@@ -34,7 +35,7 @@ const AssetFormPage: React.FC = () => {
         if (asset) {
             form.setFieldsValue({
                 ...asset,
-                date_of_purchase: dayjs(asset.date_of_purchase),
+                date_of_purchase: asset.date_of_purchase ? dayjs(asset.date_of_purchase) : null,
             });
             setIsDraft(asset.is_draft);
         }
@@ -50,6 +51,18 @@ const AssetFormPage: React.FC = () => {
         }
     }, [isBranchCustodian, branches.data, currentUser?.branch, form]);
 
+    useEffect(() => {
+        if (!isBranchCustodian || isEdit) {
+            return;
+        }
+        if (!isDraft) {
+            setIsDraft(true);
+        }
+        if (form.getFieldValue('is_draft') !== true) {
+            form.setFieldsValue({ is_draft: true });
+        }
+    }, [isBranchCustodian, isEdit, isDraft, form]);
+
     const mutation = useMutation({
         mutationFn: (values: any) => {
             if (id) {
@@ -60,12 +73,21 @@ const AssetFormPage: React.FC = () => {
         onSuccess: (_data, variables) => {
             const isDraftPayload = !!variables?.is_draft;
             if (!id) {
-                message.success(isDraftPayload ? 'Asset saved in drafts.' : 'Asset created successfully');
+                if (isDraftPayload && isBranchCustodian && submitIntent === 'review') {
+                    message.success('Asset submitted for review.');
+                } else {
+                    message.success(isDraftPayload ? 'Asset saved in drafts.' : 'Asset created successfully');
+                }
             } else {
-                message.success(isDraftPayload ? 'Draft updated.' : 'Asset updated successfully');
+                if (isDraftPayload && isBranchCustodian && submitIntent === 'review') {
+                    message.success('Draft submitted for review.');
+                } else {
+                    message.success(isDraftPayload ? 'Draft updated.' : 'Asset updated successfully');
+                }
             }
             queryClient.invalidateQueries({ queryKey: ['assets'] });
             navigate('/assets');
+            setSubmitIntent('default');
         },
         onError: (error: any) => {
             message.error(error.response?.data?.message || 'Saving failed');
@@ -78,6 +100,9 @@ const AssetFormPage: React.FC = () => {
             ...values,
             is_draft: isDraft,
         };
+        if (isBranchCustodian) {
+            payload.submit_for_review = submitIntent === 'review';
+        }
 
         if (values.date_of_purchase) {
             payload.date_of_purchase = values.date_of_purchase.format('YYYY-MM-DD');
@@ -87,6 +112,7 @@ const AssetFormPage: React.FC = () => {
         if (isActiveAsset && !isSuperAdmin) {
             payload = {
                 condition: values.condition,
+                asset_status: values.asset_status,
                 assigned_to: values.assigned_to,
                 remarks: values.remarks,
                 branch_id: values.branch_id,
@@ -114,7 +140,9 @@ const AssetFormPage: React.FC = () => {
         <Card loading={isLoading}>
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/assets')} />
+                    <Tooltip title="Back to assets">
+                        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/assets')} />
+                    </Tooltip>
                     <Title level={2} style={{ margin: 0 }}>
                         {id ? `Edit Asset: ${asset?.asset_code || 'Draft'}` : 'New Asset'}
                     </Title>
@@ -124,7 +152,7 @@ const AssetFormPage: React.FC = () => {
                     form={form}
                     layout="vertical"
                     onFinish={onFinish}
-                    initialValues={{ is_draft: true }}
+                    initialValues={{ is_draft: true, asset_status: 'active' }}
                     disabled={mutation.isPending}
                 >
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
@@ -186,13 +214,13 @@ const AssetFormPage: React.FC = () => {
                             style={{ padding: 0 }}
                         >
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', paddingTop: 8 }}>
-                                <Form.Item name="date_of_purchase" label="Date of Purchase" rules={[{ required: true }]}>
+                                <Form.Item name="date_of_purchase" label="Date of Purchase">
                                     <DatePicker style={{ width: '100%' }} disabled={isIdentFinReadOnly} />
                                 </Form.Item>
                                 <Form.Item name="acquisition_cost" label="Acquisition Cost" rules={[{ required: true }]}>
                                     <InputNumber style={{ width: '100%' }} prefix="PHP" disabled={isIdentFinReadOnly} />
                                 </Form.Item>
-                                <Form.Item name="useful_life_months" label="Useful Life (Months)" rules={[{ required: true }]}>
+                                <Form.Item name="useful_life_months" label="Useful Life (Months)">
                                     <InputNumber style={{ width: '100%' }} min={1} disabled={isIdentFinReadOnly} />
                                 </Form.Item>
                             </div>
@@ -200,12 +228,18 @@ const AssetFormPage: React.FC = () => {
                     </Collapse>
 
                     <Divider orientation={'left' as any} orientationMargin="0">Current Status & Assignment</Divider>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
                         <Form.Item name="condition" label="Condition" rules={[{ required: true }]}>
                             <Select options={[
                                 { label: 'Good', value: 'good' },
                                 { label: 'Fair', value: 'fair' },
                                 { label: 'Poor', value: 'poor' },
+                            ]} />
+                        </Form.Item>
+                        <Form.Item name="asset_status" label="Asset Status">
+                            <Select options={[
+                                { label: 'Active', value: 'active' },
+                                { label: 'Inactive', value: 'inactive' },
                             ]} />
                         </Form.Item>
                         <Form.Item name="assigned_to" label="Assigned To">
@@ -220,7 +254,7 @@ const AssetFormPage: React.FC = () => {
                         <Input.TextArea rows={3} />
                     </Form.Item>
 
-                    {!isActiveAsset && (
+                    {!isActiveAsset && !isBranchCustodian && (
                         <Form.Item name="is_draft" valuePropName="checked">
                             <Checkbox onChange={(e) => setIsDraft(e.target.checked)}>
                                 Save as Draft
@@ -230,14 +264,44 @@ const AssetFormPage: React.FC = () => {
 
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
                         <Button onClick={() => navigate('/assets')}>Cancel</Button>
-                        <Button
-                            type="primary"
-                            htmlType="submit"
-                            icon={isDraft ? <SaveOutlined /> : <SendOutlined />}
-                            loading={mutation.isPending}
-                        >
-                            {id ? (isDraft ? 'Update Draft' : 'Update Asset') : (isDraft ? 'Create Draft' : 'Create Asset')}
-                        </Button>
+                        {isBranchCustodian && !isActiveAsset ? (
+                            <>
+                                <Button
+                                    icon={<SaveOutlined />}
+                                    loading={mutation.isPending}
+                                    onClick={() => {
+                                        setIsDraft(true);
+                                        setSubmitIntent('draft');
+                                        form.setFieldsValue({ is_draft: true });
+                                        form.submit();
+                                    }}
+                                >
+                                    Save Draft
+                                </Button>
+                                <Button
+                                    type="primary"
+                                    icon={<SendOutlined />}
+                                    loading={mutation.isPending}
+                                    onClick={() => {
+                                        setIsDraft(true);
+                                        setSubmitIntent('review');
+                                        form.setFieldsValue({ is_draft: true });
+                                        form.submit();
+                                    }}
+                                >
+                                    Submit for Review
+                                </Button>
+                            </>
+                        ) : (
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                icon={isDraft ? <SaveOutlined /> : <SendOutlined />}
+                                loading={mutation.isPending}
+                            >
+                                {id ? (isDraft ? 'Update Draft' : 'Update Asset') : (isDraft ? 'Create Draft' : 'Create Asset')}
+                            </Button>
+                        )}
                     </div>
                 </Form>
             </Space>

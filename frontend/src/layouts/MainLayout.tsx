@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Layout, Menu, Button, theme, Avatar, Dropdown, Modal } from 'antd';
+import { Layout, Menu, Button, theme, Avatar, Dropdown, Modal, Tooltip } from 'antd';
 import {
     MenuFoldOutlined,
     MenuUnfoldOutlined,
@@ -165,7 +165,7 @@ const MainLayout: React.FC = () => {
                     top: 0,
                     bottom: 0,
                     height: '100vh',
-                    overflow: 'auto',
+                    overflow: collapsed ? 'visible' : 'auto',
                 }}
                 width={siderWidth}
             >
@@ -218,57 +218,61 @@ const MainLayout: React.FC = () => {
                         transition: 'transform 0.25s ease',
                     }}
                 >
-                    <Button
-                        type="text"
-                        icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-                        onClick={() => setCollapsed(!collapsed)}
-                        style={{ fontSize: '16px', width: 64, height: 64 }}
-                    />
+                    <Tooltip title={collapsed ? 'Expand menu' : 'Collapse menu'}>
+                        <Button
+                            type="text"
+                            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                            onClick={() => setCollapsed(!collapsed)}
+                            style={{ fontSize: '16px', width: 64, height: 64 }}
+                        />
+                    </Tooltip>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingRight: 8 }}>
-                        <button
-                            onClick={toggleMode}
-                            aria-label="Toggle theme"
-                            style={{
-                                border: 'none',
-                                background: 'transparent',
-                                padding: 0,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                            }}
-                        >
-                            <div
+                        <Tooltip title="Toggle theme">
+                            <button
+                                onClick={toggleMode}
+                                aria-label="Toggle theme"
                                 style={{
-                                    width: 68,
-                                    height: 32,
-                                    borderRadius: 20,
-                                    background: mode === 'dark' ? '#1f2937' : '#e6e8f0',
-                                    position: 'relative',
-                                    padding: '6px 8px',
+                                    border: 'none',
+                                    background: 'transparent',
+                                    padding: 0,
+                                    cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: 14,
-                                    boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.12)',
-                                    transition: 'background 0.2s ease',
                                 }}
                             >
-                                <BulbOutlined style={{ color: mode === 'dark' ? '#9ca3af' : '#1f2937', fontSize: 14 }} />
-                                <MoonOutlined style={{ color: mode === 'dark' ? '#fefefe' : '#9ca3af', fontSize: 14, marginLeft: 'auto' }} />
                                 <div
                                     style={{
-                                        position: 'absolute',
-                                        top: 4,
-                                        left: mode === 'dark' ? 34 : 4,
-                                        width: 30,
-                                        height: 24,
-                                        borderRadius: 14,
-                                        background: '#2f43d9',
-                                        boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
-                                        transition: 'left 0.2s ease',
+                                        width: 68,
+                                        height: 32,
+                                        borderRadius: 20,
+                                        background: mode === 'dark' ? '#1f2937' : '#e6e8f0',
+                                        position: 'relative',
+                                        padding: '6px 8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 14,
+                                        boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.12)',
+                                        transition: 'background 0.2s ease',
                                     }}
-                                />
-                            </div>
-                        </button>
+                                >
+                                    <BulbOutlined style={{ color: mode === 'dark' ? '#9ca3af' : '#1f2937', fontSize: 14 }} />
+                                    <MoonOutlined style={{ color: mode === 'dark' ? '#fefefe' : '#9ca3af', fontSize: 14, marginLeft: 'auto' }} />
+                                    <div
+                                        style={{
+                                            position: 'absolute',
+                                            top: 4,
+                                            left: mode === 'dark' ? 34 : 4,
+                                            width: 30,
+                                            height: 24,
+                                            borderRadius: 14,
+                                            background: '#2f43d9',
+                                            boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                                            transition: 'left 0.2s ease',
+                                        }}
+                                    />
+                                </div>
+                            </button>
+                        </Tooltip>
                         <span style={{ fontWeight: 500 }}>{user?.first_name} {user?.last_name}</span>
                         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" arrow>
                             <Avatar icon={<UserOutlined />} style={{ cursor: 'pointer', backgroundColor: '#1677ff' }} />
