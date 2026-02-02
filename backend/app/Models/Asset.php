@@ -43,9 +43,11 @@ class Asset extends Model
         'useful_life_months',
         'monthly_depreciation',
         'condition',
+        'asset_status',
         'remarks',
         'assigned_to',
         'is_draft',
+        'submitted_for_review_at',
         'created_by',
         'delete_request_status',
         'delete_requested_by',
@@ -53,6 +55,7 @@ class Asset extends Model
         'delete_request_reason',
         'delete_approved_by',
         'delete_approved_at',
+        'pre_delete_asset_status',
     ];
 
     /**
@@ -67,6 +70,7 @@ class Asset extends Model
             'acquisition_cost' => 'decimal:2',
             'monthly_depreciation' => 'decimal:2',
             'is_draft' => 'boolean',
+            'submitted_for_review_at' => 'datetime',
             'delete_requested_at' => 'datetime',
             'delete_approved_at' => 'datetime',
         ];
@@ -136,7 +140,7 @@ class Asset extends Model
 
     public function scopeActive($query)
     {
-        return $query->where('is_draft', false);
+        return $query->where('is_draft', false)->where('asset_status', 'active');
     }
 
     public function scopeDraft($query)
@@ -157,16 +161,18 @@ class Asset extends Model
         static::addGlobalScope('draft_visibility', function ($builder) {
             if (auth()->check()) {
                 $user = auth()->user();
-                // Admins see all. Managers see all active + their own drafts.
-                if (!in_array($user->role, ['admin', 'super_admin'])) {
-                    $builder->where(function ($query) use ($user) {
-                        $query->where('is_draft', false)
-                            ->orWhere(function ($q) use ($user) {
-                                $q->where('is_draft', true)
-                                    ->where('created_by', $user->id);
-                            });
-                    });
-                }
+                $builder->where(function ($query) use ($user) {
+                    $query->where('is_draft', false)
+                        ->orWhere(function ($q) use ($user) {
+                            $q->where('is_draft', true)
+                                ->where(function ($dq) use ($user) {
+                                    $dq->where('created_by', $user->id);
+                                    if (in_array($user->role, ['admin', 'super_admin'])) {
+                                        $dq->orWhereNotNull('submitted_for_review_at');
+                                    }
+                                });
+                        });
+                });
             } else {
                 // Unauthenticated (shouldn't happen for API routes) see nothing or only active?
                 // For safety, only active.

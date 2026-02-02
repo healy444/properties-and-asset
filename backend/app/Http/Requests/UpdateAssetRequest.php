@@ -29,13 +29,15 @@ class UpdateAssetRequest extends FormRequest
             'supplier_id' => 'nullable|exists:suppliers,id',
             'model_number' => 'nullable|string',
             'serial_number' => 'nullable|string',
-            'date_of_purchase' => 'sometimes|date',
+            'date_of_purchase' => 'sometimes|nullable|date',
             'acquisition_cost' => 'sometimes|numeric|min:0',
-            'useful_life_months' => 'sometimes|integer|min:1',
+            'useful_life_months' => 'sometimes|nullable|integer|min:1',
             'condition' => 'sometimes|string',
+            'asset_status' => 'sometimes|in:active,inactive',
             'remarks' => 'nullable|string',
             'assigned_to' => 'nullable|string',
             'is_draft' => 'boolean',
+            'submit_for_review' => 'sometimes|boolean',
         ];
     }
 }

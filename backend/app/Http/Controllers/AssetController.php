@@ -4,18 +4,25 @@ namespace App\Http\Controllers;
 
 use App\Models\Asset;
 use App\Services\AssetService;
+use App\Services\AuditLogService;
 use App\Http\Requests\StoreAssetRequest;
 use App\Http\Requests\UpdateAssetRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Imports\AssetImport;
+use App\Exports\AssetImportTemplateExport;
 
 class AssetController extends Controller
 {
     protected $assetService;
+    protected $auditLogService;
 
-    public function __construct(AssetService $assetService)
+    public function __construct(AssetService $assetService, AuditLogService $auditLogService)
     {
         $this->assetService = $assetService;
+        $this->auditLogService = $auditLogService;
         $this->authorizeResource(Asset::class, 'asset');
     }
 
@@ -34,16 +41,41 @@ class AssetController extends Controller
             return response()->json(['message' => 'Branch is not assigned'], 403);
         }
 
-        $assetsQuery = Asset::with(['branch', 'category', 'assetType', 'brand', 'supplier', 'creator'])
+        $assetsQuery = Asset::with([
+            'branch',
+            'category',
+            'assetType',
+            'brand',
+            'supplier',
+            'creator',
+            'deleteRequester',
+            'deleteApprover',
+        ])
             ->when($request->branch_id, fn($q) => $q->where('branch_id', $request->branch_id))
             ->when($request->category_id, fn($q) => $q->where('category_id', $request->category_id))
-            ->when($request->status, function ($q) use ($request) {
-                if ($request->status === 'draft')
-                    return $q->draft();
-                if ($request->status === 'active')
-                    return $q->active();
-                if ($request->status === 'pending_deletion')
+            ->when($request->status, function ($q) use ($request, $user, $isAdmin) {
+                if ($request->status === 'draft') {
+                    return $q->where('is_draft', true)
+                        ->whereNull('submitted_for_review_at')
+                        ->where('created_by', $user->id);
+                }
+                if ($request->status === 'pending_review') {
+                    $q->where('is_draft', true)
+                        ->whereNotNull('submitted_for_review_at');
+                    if (!$isAdmin) {
+                        $q->where('created_by', $user->id);
+                    }
+                    return $q;
+                }
+                if ($request->status === 'active') {
+                    return $q->active()->whereIn('delete_request_status', ['none', 'rejected']);
+                }
+                if ($request->status === 'inactive') {
+                    return $q->where('is_draft', false)->where('asset_status', 'inactive');
+                }
+                if ($request->status === 'pending_deletion') {
                     return $q->pendingDeletion();
+                }
             })
             ->when($request->search, function ($q, $search) {
                 $q->where(function ($sq) use ($search) {
@@ -57,7 +89,12 @@ class AssetController extends Controller
             $assetsQuery->where('branch_id', $branchId);
         }
 
-        if ($deletionView === 'all') {
+        if ($deletionView === 'pending') {
+            if (!$isAdmin) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+            $assetsQuery->where('delete_request_status', 'pending');
+        } elseif ($deletionView === 'all') {
             if (!$isAdmin) {
                 return response()->json(['message' => 'Unauthorized'], 403);
             }
@@ -86,6 +123,11 @@ class AssetController extends Controller
             if (!$branchId || (int) $validated['branch_id'] !== (int) $branchId) {
                 return response()->json(['message' => 'Unauthorized branch access'], 403);
             }
+            // Branch custodians can only create drafts for admin approval.
+            $validated['is_draft'] = true;
+            if ($request->boolean('submit_for_review')) {
+                $validated['submitted_for_review_at'] = now();
+            }
         }
 
         $asset = $this->assetService->createAsset($validated);
@@ -104,7 +146,16 @@ class AssetController extends Controller
         // Re-fetch with trashed to be safe, then load relations.
         $model = Asset::withTrashed()->findOrFail($asset->id);
         $this->authorize('view', $model);
-        $model->load(['branch', 'category', 'assetType', 'brand', 'supplier', 'creator']);
+        $model->load([
+            'branch',
+            'category',
+            'assetType',
+            'brand',
+            'supplier',
+            'creator',
+            'deleteRequester',
+            'deleteApprover',
+        ]);
         return response()->json($model);
     }
 
@@ -121,6 +172,9 @@ class AssetController extends Controller
             if (!$branchId || (int) $validated['branch_id'] !== (int) $branchId) {
                 return response()->json(['message' => 'Unauthorized branch access'], 403);
             }
+        }
+        if ($user?->isBranchCustodian() && $request->boolean('submit_for_review')) {
+            $validated['submitted_for_review_at'] = now();
         }
 
         $asset = $this->assetService->updateAsset($asset, $validated);
@@ -199,11 +253,37 @@ class AssetController extends Controller
     public function finalizeDraft(Asset $asset): JsonResponse
     {
         $this->authorize('update', $asset);
+        $user = request()->user();
+        if (!$user || !in_array($user->role, ['admin', 'super_admin'])) {
+            return response()->json(['message' => 'Only admins can finalize drafts'], 403);
+        }
 
-        $asset = $this->assetService->updateAsset($asset, ['is_draft' => false]);
+        $asset = $this->assetService->updateAsset($asset, ['is_draft' => false, 'submitted_for_review_at' => null]);
 
         return response()->json([
             'message' => 'Asset draft finalized and code generated',
+            'asset' => $asset
+        ]);
+    }
+
+    /**
+     * Custom: Reject Draft Review (return to draft)
+     */
+    public function rejectReview(Asset $asset): JsonResponse
+    {
+        $this->authorize('update', $asset);
+        $user = request()->user();
+        if (!$user || !in_array($user->role, ['admin', 'super_admin'])) {
+            return response()->json(['message' => 'Only admins can reject reviews'], 403);
+        }
+
+        $asset = $this->assetService->updateAsset($asset, [
+            'is_draft' => true,
+            'submitted_for_review_at' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Review rejected; draft returned to custodian',
             'asset' => $asset
         ]);
     }
@@ -227,10 +307,56 @@ class AssetController extends Controller
             $filters['branch_id'] = $branchId;
         }
 
+        $this->auditLogService->logExport('assets', $filters);
+
         return \Maatwebsite\Excel\Facades\Excel::download(
             new \App\Exports\AssetExport($filters),
             $filename
         );
+    }
+
+    /**
+     * Custom: Import Assets
+     */
+    public function import(Request $request): JsonResponse
+    {
+        $this->authorize('create', Asset::class);
+
+        $validated = $request->validate([
+            'file' => 'required|file|mimes:csv,xlsx,xls',
+        ]);
+
+        $user = $request->user();
+        if ($user?->isBranchCustodian() && !$user->getBranchId()) {
+            return response()->json(['message' => 'Branch is not assigned'], 403);
+        }
+
+        DB::transaction(function () use ($validated, $user) {
+            Excel::import(new AssetImport($this->assetService, $user), $validated['file']);
+        });
+
+        $this->auditLogService->logImport('assets', [
+            'filename' => $validated['file']->getClientOriginalName() ?? null,
+        ]);
+
+        return response()->json(['message' => 'Assets imported successfully']);
+    }
+
+    /**
+     * Custom: Download import template
+     */
+    public function importTemplate(Request $request)
+    {
+        $this->authorize('create', Asset::class);
+
+        $format = $request->input('format', 'csv');
+        if (!in_array($format, ['csv', 'xlsx'], true)) {
+            return response()->json(['message' => 'Invalid format'], 422);
+        }
+
+        $filename = 'assets_import_template_' . now()->format('Ymd_His') . '.' . $format;
+
+        return Excel::download(new AssetImportTemplateExport(), $filename);
     }
 
     /**

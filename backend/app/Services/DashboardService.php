@@ -41,12 +41,15 @@ class DashboardService
     {
         return [
             'active_assets' => Asset::where('is_draft', false)
+                ->where('asset_status', 'active')
                 ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
                 ->count(),
             'total_cost' => (float) Asset::where('is_draft', false)
+                ->where('asset_status', 'active')
                 ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
                 ->sum('acquisition_cost'),
             'total_monthly_depreciation' => (float) Asset::where('is_draft', false)
+                ->where('asset_status', 'active')
                 ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
                 ->sum('monthly_depreciation'),
         ];
@@ -61,6 +64,7 @@ class DashboardService
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->count();
         $active = Asset::where('is_draft', false)
+            ->where('asset_status', 'active')
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->count();
         $pendingDeletion = Asset::where('delete_request_status', 'pending')
@@ -81,6 +85,7 @@ class DashboardService
     {
         return Asset::select('branches.name as branch', DB::raw('count(*) as count'))
             ->join('branches', 'assets.branch_id', '=', 'branches.id')
+            ->where('assets.asset_status', 'active')
             ->when($branchId, fn($q) => $q->where('assets.branch_id', $branchId))
             ->groupBy('branches.name')
             ->get()
@@ -94,6 +99,7 @@ class DashboardService
     {
         return Asset::select('categories.name as category', DB::raw('count(*) as count'))
             ->join('categories', 'assets.category_id', '=', 'categories.id')
+            ->where('assets.asset_status', 'active')
             ->when($branchId, fn($q) => $q->where('assets.branch_id', $branchId))
             ->groupBy('categories.name')
             ->get()
@@ -107,9 +113,11 @@ class DashboardService
     {
         return [
             'fair' => Asset::where('condition', 'fair')
+                ->where('asset_status', 'active')
                 ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
                 ->count(),
             'poor' => Asset::where('condition', 'poor')
+                ->where('asset_status', 'active')
                 ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
                 ->count(),
         ];

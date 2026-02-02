@@ -1,10 +1,21 @@
 ﻿import React from 'react';
-import { Card, Col, Row, Statistic, Table, Typography, Spin, List, Tag, theme } from 'antd';
-import { ShopOutlined, AlertOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
-import { Pie, Column } from '@ant-design/plots';
+import { Card, Col, Row, Statistic, Table, Typography, Spin, Tag, theme } from 'antd';
+import { ShopOutlined } from '@ant-design/icons';
+import { Pie } from '@ant-design/plots';
+import { Bar } from 'react-chartjs-2';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Tooltip,
+    Legend,
+} from 'chart.js';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 
 const { Title, Text } = Typography;
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 const DashboardPage: React.FC = () => {
     const { data: stats, isLoading } = useDashboardStats();
@@ -23,8 +34,8 @@ const DashboardPage: React.FC = () => {
         data: stats.by_condition,
         angleField: 'count',
         colorField: 'condition',
-        innerRadius: 0.6,
-        radius: 0.8,
+        innerRadius: 0.45,
+        radius: 0.85,
         label: {
             text: 'count', // v2 syntax check? using simple label for now
             position: 'outside',
@@ -43,8 +54,8 @@ const DashboardPage: React.FC = () => {
         data: stats.by_category,
         angleField: 'count',
         colorField: 'name',
-        innerRadius: 0.6,
-        radius: 0.8,
+        innerRadius: 0.45,
+        radius: 0.85,
         label: {
             text: 'count',
             position: 'outside',
@@ -59,21 +70,99 @@ const DashboardPage: React.FC = () => {
         height: 300,
     };
 
-    const branchConfig = {
-        data: stats.by_branch,
-        xField: 'name',
-        yField: 'count',
-        color: token.colorPrimary,
-        label: {
-            text: 'count',
-            textBaseline: 'bottom',
-        },
-        tooltip: {
-            title: 'name',
-            items: [{ channel: 'y' }]
-        },
-        height: 300,
+    const hasStackedBranches = (stats.by_branch_stacked || []).length > 0;
+    const branchData = hasStackedBranches
+        ? stats.by_branch_stacked
+        : stats.by_branch;
+
+    const palette = [
+        '#a5b4fc',
+        '#93c5fd',
+        '#99f6e4',
+        '#a7f3d0',
+        '#fde68a',
+        '#fbcfe8',
+        '#f9a8d4',
+        '#fdba74',
+        '#c4b5fd',
+        '#fecaca',
+    ];
+
+    const branchLabels = hasStackedBranches
+        ? Array.from(new Set((branchData as any[]).map((item) => item.parent)))
+        : (branchData as any[]).map((item) => item.name);
+
+    const branchDatasets = hasStackedBranches
+        ? Array.from(new Set((branchData as any[]).map((item) => item.branch))).map((branch, index) => {
+            const color = palette[index % palette.length];
+            return {
+                label: branch,
+                data: branchLabels.map((parent) => {
+                    const entry = (branchData as any[]).find((item) => item.parent === parent && item.branch === branch);
+                    return entry ? Number(entry.count) : 0;
+                }),
+                backgroundColor: color,
+            };
+        })
+        : [
+            {
+                label: 'Assets',
+                data: (branchData as any[]).map((item) => Number(item.count) || 0),
+                backgroundColor: token.colorPrimary,
+            },
+        ];
+
+    const branchChartData = {
+        labels: branchLabels,
+        datasets: branchDatasets,
     };
+
+    const branchChartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false,
+            },
+            tooltip: {
+                mode: 'index' as const,
+                intersect: false,
+                callbacks: {
+                    title: (items: any[]) => {
+                        if (!items.length) return '';
+                        return String(items[0].label ?? '');
+                    },
+                    label: (context: any) => {
+                        const value = Number(context.parsed?.y ?? 0);
+                        if (!value) return '';
+                        const label = context.dataset?.label ?? '';
+                        return `${label}: ${value}`;
+                    },
+                },
+            },
+        },
+        scales: {
+            x: {
+                stacked: true,
+                ticks: {
+                    maxRotation: 45,
+                    minRotation: 45,
+                },
+                grid: {
+                    display: false,
+                },
+            },
+            y: {
+                stacked: true,
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1,
+                    callback: (value: string | number) => Number.isInteger(Number(value)) ? value : '',
+                },
+            },
+        },
+    };
+
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('en-PH', {
@@ -161,56 +250,13 @@ const DashboardPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Second Row: Health Checks */}
-            <div style={{ ...sectionLabelStyle, marginTop: 16 }}>Health checks</div>
-            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-                <Col xs={24} sm={12}>
-                    <Card
-                        title="Assets Near End of Useful Life"
-                        bordered={false}
-                        extra={<AlertOutlined style={{ color: '#faad14' }} />}
-                        style={elevatedCardStyle}
-                        bodyStyle={{ padding: '16px 18px' }}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                            <Statistic value={stats.near_end_of_life_count} suffix="assets" valueStyle={{ fontSize: 24 }} />
-                            <Text type="secondary">Review for replacement</Text>
-                        </div>
-                        <List
-                            size="small"
-                            dataSource={stats.near_end_of_life_list}
-                            renderItem={(item) => (
-                                <List.Item>
-                                    <List.Item.Meta
-                                        title={<Text strong>{item.model_number}</Text>}
-                                        description={`Purchased: ${item.date_of_purchase}`}
-                                    />
-                                    <Tag color="warning">Expiring</Tag>
-                                </List.Item>
-                            )}
-                        />
-                    </Card>
-                </Col>
-                <Col xs={24} sm={12}>
-                    {/* Charts */}
-                    <Card
-                        title="Assets by Condition"
-                        bordered={false}
-                        style={elevatedCardStyle}
-                        bodyStyle={{ padding: '12px 16px 8px' }}
-                    >
-                        <Pie {...conditionConfig} />
-                    </Card>
-                </Col>
-            </Row>
-
-            {/* Third Row: Charts */}
+            {/* Second Row: Distribution */}
             <div style={{ ...sectionLabelStyle, marginTop: 16 }}>Distribution</div>
             <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
                 <Col xs={24} md={12}>
                     <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '12px 16px 8px' }}>
-                        <Text type="secondary" style={sectionLabelStyle}>Assets by branch</Text>
-                        <Column {...branchConfig} />
+                        <Text type="secondary" style={sectionLabelStyle}>Assets by condition</Text>
+                        <Pie {...conditionConfig} />
                     </Card>
                 </Col>
                 <Col xs={24} md={12}>
@@ -221,12 +267,24 @@ const DashboardPage: React.FC = () => {
                 </Col>
             </Row>
 
+            {/* Third Row: Branch */}
+            <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+                <Col xs={24}>
+                    <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '12px 16px 8px' }}>
+                        <Text type="secondary" style={sectionLabelStyle}>Assets by branch</Text>
+                        <div style={{ height: 320 }}>
+                            <Bar data={branchChartData} options={branchChartOptions} />
+                        </div>
+                    </Card>
+                </Col>
+            </Row>
+
             {/* Fourth Row: Lists */}
             <div style={{ ...sectionLabelStyle, marginTop: 16 }}>Leaderboards</div>
             <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
                 <Col xs={24} md={12}>
                     <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '16px 18px' }}>
-                        <Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>Top 3 Suppliers</Title>
+                        <Title level={5} style={{ marginTop: 0, marginBottom: 12 }}>Top 5 Suppliers</Title>
                         <Table
                             dataSource={stats.top_suppliers}
                             rowKey="name"

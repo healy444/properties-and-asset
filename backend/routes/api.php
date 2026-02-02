@@ -29,6 +29,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     // Assets (Admin & Branch Custodian)
     Route::middleware(['role:super_admin,admin,branch_custodian'])->group(function () {
         Route::get('/assets/export', [AssetController::class, 'export']);
+        Route::get('/assets/import-template', [AssetController::class, 'importTemplate']);
+        Route::post('/assets/import', [AssetController::class, 'import']);
         Route::post('/assets/{asset}/finalize-draft', [AssetController::class, 'finalizeDraft']);
         Route::post('/assets/{asset}/request-delete', [AssetController::class, 'requestDelete']);
         Route::get('/assets/{asset}', [AssetController::class, 'show'])->withTrashed();
@@ -50,6 +52,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::apiResource('users', UserController::class);
         Route::post('/assets/{asset}/approve-delete', [AssetController::class, 'approveDelete']);
         Route::post('/assets/{asset}/reject-delete', [AssetController::class, 'rejectDelete']);
+        Route::post('/assets/{asset}/reject-review', [AssetController::class, 'rejectReview']);
     });
 
     Route::middleware(['role:super_admin'])->group(function () {

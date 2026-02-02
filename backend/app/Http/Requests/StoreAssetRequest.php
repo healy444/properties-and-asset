@@ -29,13 +29,15 @@ class StoreAssetRequest extends FormRequest
             'supplier_id' => 'nullable|exists:suppliers,id',
             'model_number' => 'nullable|string',
             'serial_number' => 'nullable|string',
-            'date_of_purchase' => 'required|date',
+            'date_of_purchase' => 'nullable|date',
             'acquisition_cost' => 'required|numeric|min:0',
-            'useful_life_months' => 'required|integer|min:1',
+            'useful_life_months' => 'nullable|integer|min:1',
             'condition' => 'required|string',
+            'asset_status' => 'nullable|in:active,inactive',
             'remarks' => 'nullable|string',
             'assigned_to' => 'nullable|string',
             'is_draft' => 'boolean',
+            'submit_for_review' => 'sometimes|boolean',
         ];
     }
 }

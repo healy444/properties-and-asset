@@ -108,6 +108,21 @@ class AuditLogService
     }
 
     /**
+     * Log import actions.
+     */
+    public function logImport(string $type, array $metadata = []): AuditLog
+    {
+        return $this->log(
+            'IMPORT',
+            null,
+            null,
+            null,
+            null,
+            array_merge(['import_type' => $type], $metadata)
+        );
+    }
+
+    /**
      * Log security events (login/logout).
      */
     public function logSecurity(string $action, ?int $userId = null): AuditLog

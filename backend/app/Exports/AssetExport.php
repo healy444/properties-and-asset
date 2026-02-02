@@ -23,12 +23,18 @@ class AssetExport implements FromQuery, WithHeadings, WithMapping
             ->when($this->filters['branch_id'] ?? null, fn($q, $id) => $q->where('branch_id', $id))
             ->when($this->filters['category_id'] ?? null, fn($q, $id) => $q->where('category_id', $id))
             ->when($this->filters['status'] ?? null, function ($q, $status) {
-                if ($status === 'draft')
+                if ($status === 'draft') {
                     return $q->draft();
-                if ($status === 'active')
+                }
+                if ($status === 'active') {
                     return $q->active();
-                if ($status === 'pending_deletion')
+                }
+                if ($status === 'inactive') {
+                    return $q->where('is_draft', false)->where('asset_status', 'inactive');
+                }
+                if ($status === 'pending_deletion') {
                     return $q->pendingDeletion();
+                }
             })
             ->when($this->filters['search'] ?? null, function ($q, $search) {
                 $q->where(function ($sq) use ($search) {

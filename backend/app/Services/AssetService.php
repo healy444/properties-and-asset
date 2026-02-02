@@ -35,13 +35,18 @@ class AssetService
             $category = Category::findOrFail($data['category_id']);
             $assetType = AssetType::findOrFail($data['asset_type_id']);
 
-            // Calculate depreciation
-            $data['monthly_depreciation'] = $this->depreciationService->calculateMonthlyDepreciation(
-                $data['acquisition_cost'],
-                $data['useful_life_months']
-            );
+            // Calculate depreciation when cost and life are provided.
+            if (!empty($data['acquisition_cost']) && !empty($data['useful_life_months'])) {
+                $data['monthly_depreciation'] = $this->depreciationService->calculateMonthlyDepreciation(
+                    $data['acquisition_cost'],
+                    $data['useful_life_months']
+                );
+            } else {
+                $data['monthly_depreciation'] = 0;
+            }
 
             $isDraft = (bool) ($data['is_draft'] ?? false);
+            $data['asset_status'] = $data['asset_status'] ?? 'active';
 
             if (!$isDraft) {
                 $data['asset_code'] = $this->codeGenerator->generate($branch, $category, $assetType);
@@ -84,16 +89,21 @@ class AssetService
                     'serial_number',
                     'model_number',
                     'brand_id',
-                    'supplier_id'
+                    'supplier_id',
+                    'asset_status'
                 ];
                 $data = array_intersect_key($data, array_flip($allowedFields));
             } else {
                 // Draft: creator can edit all fields.
                 // But we should recalculate depreciation if cost or life changed
-                if (isset($data['acquisition_cost']) || isset($data['useful_life_months'])) {
+                if (array_key_exists('acquisition_cost', $data) || array_key_exists('useful_life_months', $data)) {
                     $cost = $data['acquisition_cost'] ?? $asset->acquisition_cost;
                     $life = $data['useful_life_months'] ?? $asset->useful_life_months;
-                    $data['monthly_depreciation'] = $this->depreciationService->calculateMonthlyDepreciation($cost, $life);
+                    if (!empty($cost) && !empty($life)) {
+                        $data['monthly_depreciation'] = $this->depreciationService->calculateMonthlyDepreciation($cost, $life);
+                    } else {
+                        $data['monthly_depreciation'] = 0;
+                    }
                 }
 
                 // Transition Draft -> Active
@@ -136,6 +146,7 @@ class AssetService
                 'delete_requested_by' => Auth::id(),
                 'delete_requested_at' => now(),
                 'delete_request_reason' => $reason,
+                'pre_delete_asset_status' => $asset->asset_status,
             ]);
 
             $this->auditLogService->log(
@@ -184,9 +195,15 @@ class AssetService
     {
         return DB::transaction(function () use ($asset) {
             $oldValues = $asset->toArray();
+            $priorStatus = $asset->pre_delete_asset_status ?: $asset->asset_status;
 
             $asset->update([
-                'delete_request_status' => 'rejected',
+                'delete_request_status' => 'none',
+                'delete_requested_by' => null,
+                'delete_requested_at' => null,
+                'delete_request_reason' => null,
+                'pre_delete_asset_status' => null,
+                'asset_status' => $priorStatus,
             ]);
 
             $this->auditLogService->log(
@@ -216,6 +233,7 @@ class AssetService
                 'delete_requested_by' => null,
                 'delete_requested_at' => null,
                 'delete_request_reason' => null,
+                'pre_delete_asset_status' => null,
                 'delete_approved_by' => null,
                 'delete_approved_at' => null,
             ]);
