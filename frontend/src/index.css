@@ -28,6 +28,20 @@ body {
   min-height: 100vh;
 }
 
+body[data-theme='dark'] {
+  background: #0b1324;
+  color: #e5e7eb;
+}
+
+body[data-theme='dark'] h1,
+body[data-theme='dark'] h2,
+body[data-theme='dark'] h3,
+body[data-theme='dark'] h4,
+body[data-theme='dark'] h5,
+body[data-theme='dark'] h6 {
+  color: #f8fafc;
+}
+
 h1 {
   font-size: 3.2em;
   line-height: 1.1;

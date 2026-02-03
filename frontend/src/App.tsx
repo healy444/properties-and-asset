@@ -4,19 +4,10 @@ import { ConfigProvider, theme as antdTheme } from 'antd';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider, useThemeMode } from './context/ThemeContext';
-import MainLayout from './layouts/MainLayout';
+import AppLayout from './layouts/AppLayout';
 import ProtectedRoute from './routes/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
-import AssetListPage from './pages/AssetListPage';
-import AssetFormPage from './pages/AssetFormPage';
-import DashboardPage from './pages/DashboardPage';
-import UserListPage from './pages/UserListPage';
-import AuditLogPage from './pages/AuditLogPage';
-import ReferenceManagementPage from './pages/ReferenceManagementPage';
-import ProfilePage from './pages/ProfilePage';
-import CreditPropertiesPage from './pages/CreditPropertiesPage';
-import ResortPage from './pages/ResortPage';
-import CablePage from './pages/CablePage';
+import { protectedRoutes, routePaths } from './routes/appRoutes';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -54,19 +45,11 @@ const App: React.FC = () => {
               <Route path="/login" element={<LoginPage />} />
 
               <Route element={<ProtectedRoute />}>
-                <Route element={<MainLayout />}>
-                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                  <Route path="/dashboard" element={<DashboardPage />} />
-                  <Route path="/assets" element={<AssetListPage />} />
-                  <Route path="/assets/new" element={<AssetFormPage />} />
-                  <Route path="/assets/:id/edit" element={<AssetFormPage />} />
-                  <Route path="/credit/properties" element={<CreditPropertiesPage />} />
-                  <Route path="/resort" element={<ResortPage />} />
-                  <Route path="/cable" element={<CablePage />} />
-                  <Route path="/audit-logs" element={<AuditLogPage />} />
-                  <Route path="/users" element={<UserListPage />} />
-                  <Route path="/references" element={<ReferenceManagementPage />} />
-                  <Route path="/profile" element={<ProfilePage />} />
+                <Route element={<AppLayout />}>
+                  <Route path="/" element={<Navigate to={routePaths.dashboard} replace />} />
+                  {protectedRoutes.map((route) => (
+                    <Route key={route.path} path={route.path} element={route.element} />
+                  ))}
                 </Route>
               </Route>
 

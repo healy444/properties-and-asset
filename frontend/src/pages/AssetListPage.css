@@ -1,0 +1,134 @@
+.asset-list__header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.asset-list__header-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.asset-list__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.asset-list__filters {
+  row-gap: 12px;
+}
+
+.asset-list__filter {
+  width: 180px;
+}
+
+.asset-list__filter--search {
+  width: 250px;
+}
+
+.asset-list__filter--small {
+  width: 150px;
+}
+
+.asset-list__filter--status {
+  width: 170px;
+}
+
+body[data-theme='dark'] .asset-list__title {
+  color: #f8fafc;
+}
+
+@media (max-width: 768px) {
+  .asset-list__header-actions {
+    justify-content: stretch;
+  }
+
+  .asset-list__header-actions .ant-btn {
+    width: 100%;
+  }
+
+  .asset-list__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .asset-list__action-buttons {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .asset-list__action-buttons .ant-btn {
+    flex: 1 1 140px;
+  }
+
+  .asset-list__filters {
+    width: 100%;
+  }
+
+  .asset-list__filter {
+    width: 100%;
+  }
+
+  .asset-list .ant-table-row {
+    cursor: pointer;
+  }
+
+  .asset-list .ant-table {
+    table-layout: fixed;
+  }
+
+  .asset-list .ant-table-cell {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .asset-list__cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .asset-list__card {
+    border-radius: 12px;
+  }
+
+  .asset-list__card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .asset-list__card-row + .asset-list__card-row {
+    margin-top: 8px;
+  }
+
+  .asset-list__card-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: #475569;
+  }
+
+  .asset-list__card-dot {
+    opacity: 0.6;
+  }
+
+  .asset-list__card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .asset-list__pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 4px;
+  }
+}

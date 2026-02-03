@@ -1,0 +1,29 @@
+.asset-form__grid {
+  display: grid;
+  gap: 16px;
+}
+
+.asset-form__grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.asset-form__grid--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.asset-form__grid--padded {
+  padding-top: 8px;
+}
+
+@media (max-width: 1024px) {
+  .asset-form__grid--four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .asset-form__grid--three,
+  .asset-form__grid--four {
+    grid-template-columns: 1fr;
+  }
+}

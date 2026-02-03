@@ -1,0 +1,72 @@
+.user-list .ant-table {
+  table-layout: fixed;
+}
+
+.user-list .ant-table-cell {
+  white-space: normal;
+  word-break: break-word;
+}
+
+.user-list__header {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.user-list__filters {
+  row-gap: 12px;
+  width: 100%;
+}
+
+.user-list__filter {
+  width: 180px;
+}
+
+.user-list__filter--search {
+  width: 250px;
+}
+
+.user-list__filter--role {
+  width: 150px;
+}
+
+body[data-theme='dark'] .user-list__title {
+  color: #f8fafc;
+}
+
+@media (max-width: 768px) {
+  .user-list__add-button {
+    width: 100%;
+  }
+
+  .user-list__header {
+    align-items: stretch;
+  }
+
+  .user-list__filter,
+  .user-list__filter--search,
+  .user-list__filter--role {
+    width: 100%;
+  }
+
+  .user-list__actions-title {
+    display: none;
+  }
+
+  .user-list__actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (min-width: 769px) {
+  .user-list .ant-table {
+    table-layout: auto;
+  }
+
+  .user-list .ant-table-cell {
+    white-space: nowrap;
+  }
+}

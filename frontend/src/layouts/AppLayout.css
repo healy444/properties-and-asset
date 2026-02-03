@@ -1,0 +1,22 @@
+.app-layout {
+  min-height: 100vh;
+}
+
+.app-layout--mobile {
+  --mobile-nav-height: 68px;
+  --mobile-header-height: 60px;
+  background: #ffffff;
+}
+
+body[data-theme='dark'] .app-layout--mobile {
+  background: #0b1324;
+}
+
+.app-layout__mobile-content {
+  padding: 16px;
+  padding-bottom: calc(var(--mobile-nav-height) + 28px + env(safe-area-inset-bottom));
+  padding-top: 16px;
+  min-height: 100vh;
+  box-sizing: border-box;
+  background: inherit;
+}

@@ -8,6 +8,7 @@ import { useReferences } from '../hooks/useReferences';
 import { useAuth } from '../context/AuthContext';
 import dayjs from 'dayjs';
 import type { Asset } from '../types';
+import './AssetFormPage.css';
 
 const { Title } = Typography;
 
@@ -155,7 +156,7 @@ const AssetFormPage: React.FC = () => {
                     initialValues={{ is_draft: true, asset_status: 'active' }}
                     disabled={mutation.isPending}
                 >
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                    <div className="asset-form__grid asset-form__grid--three">
                         <Form.Item name="branch_id" label="Branch" rules={[{ required: true }]}>
                             <Select
                                 disabled={isBranchCustodian}
@@ -195,7 +196,7 @@ const AssetFormPage: React.FC = () => {
                             key="ident"
                             style={{ padding: 0 }}
                         >
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', paddingTop: 8 }}>
+                            <div className="asset-form__grid asset-form__grid--three asset-form__grid--padded">
                                 <Form.Item name="brand_id" label="Brand">
                                     <Select allowClear options={brands.data?.map(b => ({ label: b.name, value: b.id }))} disabled={isIdentFinReadOnly} />
                                 </Form.Item>
@@ -213,7 +214,7 @@ const AssetFormPage: React.FC = () => {
                             key="fin"
                             style={{ padding: 0 }}
                         >
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', paddingTop: 8 }}>
+                            <div className="asset-form__grid asset-form__grid--three asset-form__grid--padded">
                                 <Form.Item name="date_of_purchase" label="Date of Purchase">
                                     <DatePicker style={{ width: '100%' }} disabled={isIdentFinReadOnly} />
                                 </Form.Item>
@@ -228,7 +229,7 @@ const AssetFormPage: React.FC = () => {
                     </Collapse>
 
                     <Divider orientation={'left' as any} orientationMargin="0">Current Status & Assignment</Divider>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                    <div className="asset-form__grid asset-form__grid--four">
                         <Form.Item name="condition" label="Condition" rules={[{ required: true }]}>
                             <Select options={[
                                 { label: 'Good', value: 'good' },

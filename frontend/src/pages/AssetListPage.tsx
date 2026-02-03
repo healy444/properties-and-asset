@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Card, Input, Select, Button, Space, Tag, Typography, message, Badge, Modal, Radio, Upload, Tooltip } from 'antd';
+import { Table, Card, Input, Select, Button, Space, Tag, Typography, message, Badge, Modal, Radio, Upload, Tooltip, Pagination } from 'antd';
 import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, DownloadOutlined, RollbackOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -8,6 +8,8 @@ import type { Asset } from '../types';
 import { useReferences } from '../hooks/useReferences';
 import { useAuth } from '../context/AuthContext';
 import AssetDetailsDrawer from '../components/AssetDetailsDrawer';
+import useMediaQuery from '../hooks/useMediaQuery';
+import './AssetListPage.css';
 
 const { Title } = Typography;
 const { confirm } = Modal;
@@ -17,6 +19,7 @@ const AssetListPage: React.FC = () => {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
+    const isMobile = useMediaQuery('(max-width: 768px)');
     const { branches, categories } = useReferences();
     const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null);
     const [drawerVisible, setDrawerVisible] = useState(false);
@@ -346,6 +349,169 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
         });
     };
 
+    const renderStatusBadge = (record: Asset) => {
+        if (record.delete_request_status === 'pending') {
+            return <Badge status="error" text="Pending Delete" />;
+        }
+        if (record.delete_request_status === 'approved') {
+            return <Badge status="success" text="Deletion Approved" />;
+        }
+        if (record.delete_request_status === 'rejected') {
+            return <Badge status="warning" text="Deletion Rejected" />;
+        }
+        if (record.is_draft && record.submitted_for_review_at) {
+            return <Badge status="processing" text={isAdmin ? 'Pending Review' : 'Submitted for Review'} />;
+        }
+        if (record.is_draft) {
+            return <Badge status="warning" text="Draft" />;
+        }
+        if (record.asset_status === 'inactive') {
+            return <Badge status="default" text="Inactive" />;
+        }
+        return <Badge status="success" text="Active" />;
+    };
+
+    const renderActions = (record: Asset) => {
+        const isDeleted = !!(record as any).deleted_at;
+
+        if (isDeleted) {
+            return (
+                <Space>
+                    <Tooltip title="View details">
+                        <Button
+                            icon={<EyeOutlined />}
+                            size="small"
+                            onClick={() => {
+                                setSelectedAssetId(record.id);
+                                setDrawerVisible(true);
+                            }}
+                        />
+                    </Tooltip>
+                    {user?.role === 'super_admin' && (
+                        <Tooltip title="Restore asset">
+                            <Button
+                                icon={<RollbackOutlined />}
+                                size="small"
+                                type="primary"
+                                onClick={() =>
+                                    confirm({
+                                        title: 'Restore asset?',
+                                        icon: <ExclamationCircleOutlined />,
+                                        content: 'This will restore the asset and clear its deletion request.',
+                                        onOk() {
+                                            return restoreMutation.mutateAsync(record.id);
+                                        },
+                                    })
+                                }
+                                loading={restoreMutation.isPending}
+                            />
+                        </Tooltip>
+                    )}
+                </Space>
+            );
+        }
+
+        return (
+            <Space>
+                <Tooltip title="View details">
+                    <Button
+                        icon={<EyeOutlined />}
+                        size="small"
+                        onClick={() => {
+                            setSelectedAssetId(record.id);
+                            setDrawerVisible(true);
+                        }}
+                    />
+                </Tooltip>
+                <Tooltip title="Edit asset">
+                    <Button
+                        icon={<EditOutlined />}
+                        size="small"
+                        onClick={() => navigate(`/assets/${record.id}/edit`)}
+                    />
+                </Tooltip>
+                {record.delete_request_status === 'pending' && (user?.role === 'admin' || user?.role === 'super_admin') && (
+                    <>
+                        <Tooltip title="Approve deletion">
+                            <Button
+                                icon={<CheckCircleOutlined />}
+                                size="small"
+                                type="primary"
+                                ghost
+                                onClick={() => {
+                                    let reason = '';
+                                    confirm({
+                                        title: 'Approve Deletion?',
+                                        icon: <ExclamationCircleOutlined />,
+                                        content: (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                <div>Provide a reason for approving this deletion.</div>
+                                                <Input.TextArea
+                                                    autoSize={{ minRows: 3, maxRows: 5 }}
+                                                    placeholder="Reason for approval (required)"
+                                                    onChange={(e) => { reason = e.target.value; }}
+                                                />
+                                            </div>
+                                        ),
+                                        okText: 'Approve',
+                                        onOk() {
+                                            if (!reason || reason.trim().length < 5) {
+                                                message.error('Please provide a reason (min 5 characters).');
+                                                return Promise.reject();
+                                            }
+                                            return approveMutation.mutateAsync({ id: record.id, reason: reason.trim() });
+                                        },
+                                    });
+                                }}
+                            />
+                        </Tooltip>
+                        <Tooltip title="Reject deletion">
+                            <Button
+                                icon={<CloseCircleOutlined />}
+                                size="small"
+                                danger
+                                ghost
+                                onClick={() => rejectMutation.mutate(record.id)}
+                            />
+                        </Tooltip>
+                    </>
+                )}
+                {record.is_draft && record.submitted_for_review_at && isAdmin && (
+                    <>
+                        <Tooltip title="Approve review">
+                            <Button
+                                icon={<CheckCircleOutlined />}
+                                size="small"
+                                type="primary"
+                                ghost
+                                onClick={() => approveReviewMutation.mutate(record.id)}
+                            />
+                        </Tooltip>
+                        <Tooltip title="Reject review">
+                            <Button
+                                icon={<CloseCircleOutlined />}
+                                size="small"
+                                danger
+                                ghost
+                                onClick={() => rejectReviewMutation.mutate(record.id)}
+                            />
+                        </Tooltip>
+                    </>
+                )}
+                {record.delete_request_status === 'none' && !record.is_draft && (
+                    <Tooltip title="Request deletion">
+                        <Button
+                            icon={<DeleteOutlined />}
+                            size="small"
+                            danger
+                            onClick={() => handleRequestDelete(record.id)}
+                        />
+                    </Tooltip>
+                )}
+            </Space>
+        );
+    };
+
     const columns = [
         {
             title: 'Code',
@@ -369,195 +535,40 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
             title: 'Category',
             dataIndex: ['category', 'name'],
             key: 'category',
+            responsive: ['md'],
         },
         {
             title: 'Cost',
             dataIndex: 'acquisition_cost',
             key: 'acquisition_cost',
+            responsive: ['md'],
             render: (cost: number) => `₱${Number(cost).toLocaleString()}`,
         },
         {
             title: 'Condition',
             dataIndex: 'condition',
             key: 'condition',
+            responsive: ['md'],
             render: (condition: string) => <Tag color={condition === 'poor' ? 'error' : 'processing'}>{condition.toUpperCase()}</Tag>,
         },
         {
             title: 'Status',
             key: 'status',
-            render: (_unused: any, record: Asset) => {
-                if (record.delete_request_status === 'pending') {
-                    return <Badge status="error" text="Pending Delete" />;
-                }
-                if (record.delete_request_status === 'approved') {
-                    return <Badge status="success" text="Deletion Approved" />;
-                }
-                if (record.delete_request_status === 'rejected') {
-                    return <Badge status="warning" text="Deletion Rejected" />;
-                }
-                if (record.is_draft && record.submitted_for_review_at) {
-                    return <Badge status="processing" text={isAdmin ? 'Pending Review' : 'Submitted for Review'} />;
-                }
-                if (record.is_draft) {
-                    return <Badge status="warning" text="Draft" />;
-                }
-                if (record.asset_status === 'inactive') {
-                    return <Badge status="default" text="Inactive" />;
-                }
-                return <Badge status="success" text="Active" />;
-            }
+            responsive: ['md'],
+            render: (_unused: any, record: Asset) => renderStatusBadge(record),
         },
         {
             title: 'Actions',
             key: 'actions',
-            render: (_unused: any, record: Asset) => {
-                const isDeleted = !!(record as any).deleted_at;
-
-                if (isDeleted) {
-                    return (
-                        <Space>
-                            <Tooltip title="View details">
-                                <Button
-                                    icon={<EyeOutlined />}
-                                    size="small"
-                                    onClick={() => {
-                                        setSelectedAssetId(record.id);
-                                        setDrawerVisible(true);
-                                    }}
-                                />
-                            </Tooltip>
-                            {user?.role === 'super_admin' && (
-                                <Tooltip title="Restore asset">
-                                    <Button
-                                        icon={<RollbackOutlined />}
-                                        size="small"
-                                        type="primary"
-                                        onClick={() =>
-                                            confirm({
-                                                title: 'Restore asset?',
-                                                icon: <ExclamationCircleOutlined />,
-                                                content: 'This will restore the asset and clear its deletion request.',
-                                                onOk() {
-                                                    return restoreMutation.mutateAsync(record.id);
-                                                },
-                                            })
-                                        }
-                                        loading={restoreMutation.isPending}
-                                    />
-                                </Tooltip>
-                            )}
-                        </Space>
-                    );
-                }
-
-                return (
-                    <Space>
-                        <Tooltip title="View details">
-                            <Button
-                                icon={<EyeOutlined />}
-                                size="small"
-                                onClick={() => {
-                                    setSelectedAssetId(record.id);
-                                    setDrawerVisible(true);
-                                }}
-                            />
-                        </Tooltip>
-                        <Tooltip title="Edit asset">
-                            <Button
-                                icon={<EditOutlined />}
-                                size="small"
-                                onClick={() => navigate(`/assets/${record.id}/edit`)}
-                            />
-                        </Tooltip>
-                        {record.delete_request_status === 'pending' && (user?.role === 'admin' || user?.role === 'super_admin') && (
-                            <>
-                                <Tooltip title="Approve deletion">
-                                    <Button
-                                        icon={<CheckCircleOutlined />}
-                                        size="small"
-                                        type="primary"
-                                        ghost
-                                        onClick={() => {
-                                            let reason = '';
-                                            confirm({
-                                                title: 'Approve Deletion?',
-                                                icon: <ExclamationCircleOutlined />,
-                                                content: (
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                                        <div>Provide a reason for approving this deletion.</div>
-                                                        <Input.TextArea
-                                                            autoSize={{ minRows: 3, maxRows: 5 }}
-                                                            placeholder="Reason for approval (required)"
-                                                            onChange={(e) => { reason = e.target.value; }}
-                                                        />
-                                                    </div>
-                                                ),
-                                                okText: 'Approve',
-                                                onOk() {
-                                                    if (!reason || reason.trim().length < 5) {
-                                                        message.error('Please provide a reason (min 5 characters).');
-                                                        return Promise.reject();
-                                                    }
-                                                    return approveMutation.mutateAsync({ id: record.id, reason: reason.trim() });
-                                                },
-                                            });
-                                        }}
-                                    />
-                                </Tooltip>
-                                <Tooltip title="Reject deletion">
-                                    <Button
-                                        icon={<CloseCircleOutlined />}
-                                        size="small"
-                                        danger
-                                        ghost
-                                        onClick={() => rejectMutation.mutate(record.id)}
-                                    />
-                                </Tooltip>
-                            </>
-                        )}
-                        {record.is_draft && record.submitted_for_review_at && isAdmin && (
-                            <>
-                                <Tooltip title="Approve review">
-                                    <Button
-                                        icon={<CheckCircleOutlined />}
-                                        size="small"
-                                        type="primary"
-                                        ghost
-                                        onClick={() => approveReviewMutation.mutate(record.id)}
-                                    />
-                                </Tooltip>
-                                <Tooltip title="Reject review">
-                                    <Button
-                                        icon={<CloseCircleOutlined />}
-                                        size="small"
-                                        danger
-                                        ghost
-                                        onClick={() => rejectReviewMutation.mutate(record.id)}
-                                    />
-                                </Tooltip>
-                            </>
-                        )}
-                        {record.delete_request_status === 'none' && !record.is_draft && (
-                            <Tooltip title="Request deletion">
-                                <Button
-                                    icon={<DeleteOutlined />}
-                                    size="small"
-                                    danger
-                                    onClick={() => handleRequestDelete(record.id)}
-                                />
-                            </Tooltip>
-                        )}
-                    </Space>
-                );
-            },
+            render: (_unused: any, record: Asset) => renderActions(record),
         },
     ];
 
     return (
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <Title level={2} style={{ margin: 0 }}>Asset Management</Title>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Space direction="vertical" size="large" style={{ width: '100%' }} className="asset-list">
+            <div className="asset-list__header">
+                <h2 style={{ margin: 0 }} className="asset-list__title">Asset Management</h2>
+                <div className="asset-list__header-actions">
                     <Button
                         type="primary"
                         icon={<PlusOutlined />}
@@ -570,9 +581,9 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
             </div>
 
             <Card>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <div className="asset-list__actions">
                     <div />
-                    <Space>
+                    <Space className="asset-list__action-buttons" wrap>
                         <Button
                             icon={<DownloadOutlined />}
                             onClick={() => setTemplateModalVisible(true)}
@@ -594,17 +605,17 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                         </Button>
                     </Space>
                 </div>
-                <Space wrap style={{ marginBottom: 16 }}>
+                <Space wrap style={{ marginBottom: 16 }} className="asset-list__filters">
                     <Input
                         placeholder="Search by code, model..."
                         prefix={<SearchOutlined />}
-                        style={{ width: 250 }}
+                        className="asset-list__filter asset-list__filter--search"
                         value={params.search}
                         onChange={(e) => setParams({ ...params, search: e.target.value })}
                     />
                     <Select
                         placeholder="Branch"
-                        style={{ width: 150 }}
+                        className="asset-list__filter asset-list__filter--small"
                         allowClear={!isBranchCustodian}
                         disabled={isBranchCustodian}
                         options={branches.data?.map(b => ({ label: b.name, value: b.id }))}
@@ -613,14 +624,14 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                     />
                     <Select
                         placeholder="Category"
-                        style={{ width: 150 }}
+                        className="asset-list__filter asset-list__filter--small"
                         allowClear
                         options={categories.data?.map(c => ({ label: c.name, value: c.id }))}
                         onChange={(val) => setParams({ ...params, category_id: val })}
                     />
                     <Select
                         placeholder="Status"
-                        style={{ width: 170 }}
+                        className="asset-list__filter asset-list__filter--status"
                         allowClear
                         options={[
                             { label: 'Active (Default)', value: 'active' },
@@ -679,18 +690,56 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                     </Button>
                 </Space>
 
-                <Table
-                    columns={columns}
-                    dataSource={data?.data}
-                    loading={isLoading}
-                    rowKey="id"
-                    pagination={{
-                        current: data?.current_page,
-                        pageSize: data?.per_page,
-                        total: data?.total,
-                        onChange: (page) => setParams({ ...params, page }),
-                    }}
-                />
+                {isMobile ? (
+                    <div className="asset-list__cards">
+                        {(data?.data || []).map((record: Asset) => (
+                            <Card key={record.id} size="small" className="asset-list__card">
+                                <div className="asset-list__card-row">
+                                    <div className="asset-list__card-code">
+                                        {record.is_draft ? <Tag color="orange">DRAFT</Tag> : <strong>{record.asset_code}</strong>}
+                                    </div>
+                                    <div className="asset-list__card-status">
+                                        {renderStatusBadge(record)}
+                                    </div>
+                                </div>
+                                <div className="asset-list__card-row">
+                                    <div className="asset-list__card-meta">
+                                        <span>{record.assetType?.name || (record as any).asset_type?.name || '-'}</span>
+                                        <span className="asset-list__card-dot">•</span>
+                                        <span>{record.branch?.name || '-'}</span>
+                                    </div>
+                                </div>
+                                <div className="asset-list__card-row">
+                                    <div className="asset-list__card-actions">
+                                        {renderActions(record)}
+                                    </div>
+                                </div>
+                            </Card>
+                        ))}
+                        <div className="asset-list__pagination">
+                            <Pagination
+                                current={data?.current_page}
+                                pageSize={data?.per_page}
+                                total={data?.total}
+                                onChange={(page) => setParams({ ...params, page })}
+                                size="small"
+                            />
+                        </div>
+                    </div>
+                ) : (
+                    <Table
+                        columns={columns}
+                        dataSource={data?.data}
+                        loading={isLoading}
+                        rowKey="id"
+                        pagination={{
+                            current: data?.current_page,
+                            pageSize: data?.per_page,
+                            total: data?.total,
+                            onChange: (page) => setParams({ ...params, page }),
+                        }}
+                    />
+                )}
             </Card>
 
             <AssetDetailsDrawer

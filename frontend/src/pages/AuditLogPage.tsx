@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Table, Card, Tag, Space, Input, Select, Button, Typography, DatePicker, Tooltip, Modal } from 'antd';
+import { Table, Card, Tag, Space, Input, Select, Button, Typography, DatePicker, Tooltip, Modal, Pagination } from 'antd';
 import { SearchOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import axios from '../api/axios';
 import type { AuditLog } from '../types';
 import dayjs from 'dayjs';
+import './AuditLogPage.css';
+import useMediaQuery from '../hooks/useMediaQuery';
 
 const { RangePicker } = DatePicker;
 const { Text } = Typography;
@@ -20,6 +22,7 @@ const AuditLogPage: React.FC = () => {
         date_range: null as any,
     });
     const [search, setSearch] = useState('');
+    const isMobile = useMediaQuery('(max-width: 768px)');
 
     const { data: logs, isLoading, refetch } = useQuery({
         queryKey: ['audit-logs', page, filters],
@@ -63,6 +66,7 @@ const AuditLogPage: React.FC = () => {
             title: 'User',
             key: 'user',
             width: 220,
+            responsive: ['md'],
             render: (log: AuditLog) => (
                 <Space size={4} style={{ whiteSpace: 'nowrap' }}>
                     <Tooltip title={`ID: ${log.user_id}`}>
@@ -97,6 +101,7 @@ const AuditLogPage: React.FC = () => {
         {
             title: 'Changes',
             key: 'changes',
+            responsive: ['md'],
             render: (log: AuditLog) => {
                 if (log.old_values || log.new_values) {
                     const keys = Object.keys(log.new_values || log.old_values || {});
@@ -121,10 +126,12 @@ const AuditLogPage: React.FC = () => {
             title: 'IP Address',
             dataIndex: 'ip_address',
             key: 'ip_address',
+            responsive: ['md'],
         },
         {
             title: 'Details',
             key: 'details',
+            className: 'audit-log__details-col',
             render: (log: AuditLog) => (
                 <Tooltip title="View details">
                     <Button
@@ -146,63 +153,120 @@ const AuditLogPage: React.FC = () => {
     ];
 
     return (
-        <div>
-            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ margin: 0 }}>Audit Trail</h2>
-                <Button icon={<ReloadOutlined />} onClick={() => refetch()}>Refresh</Button>
+        <div className="audit-log">
+            <div style={{ marginBottom: 16 }}>
+                <h2 style={{ margin: 0 }} className="audit-log__title">Audit Trail</h2>
             </div>
 
             <Card style={{ marginBottom: 16 }}>
-                <Space wrap size="large">
-                    <div>
-                        <div style={{ marginBottom: 4 }}>Date Range</div>
-                        <RangePicker
-                            onChange={(dates) => setFilters(f => ({ ...f, date_range: dates }))}
-                        />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
+                            Refresh
+                        </Button>
                     </div>
-                    <div>
-                        <div style={{ marginBottom: 4 }}>Action</div>
-                        <Select
-                            placeholder="All Actions"
-                            allowClear
-                            style={{ width: 150 }}
-                            onChange={val => setFilters(f => ({ ...f, action: val }))}
-                        >
-                            <Option value="CREATE">CREATE</Option>
-                            <Option value="UPDATE">UPDATE</Option>
-                            <Option value="DELETE">DELETE</Option>
-                            <Option value="LOGIN">LOGIN</Option>
-                            <Option value="RESET_PASSWORD">RESET_PASSWORD</Option>
-                        </Select>
-                    </div>
-                    <div>
-                        <div style={{ marginBottom: 4 }}>Entity Type</div>
-                        <Select
-                            placeholder="All Types"
-                            allowClear
-                            style={{ width: 150 }}
-                            onChange={val => setFilters(f => ({ ...f, entity_type: val }))}
-                        >
-                            <Option value="Asset">Asset</Option>
-                            <Option value="User">User</Option>
-                            <Option value="Branch">Branch</Option>
-                        </Select>
-                    </div>
-                </Space>
+                    <Space wrap size="large">
+                        <div>
+                            <div style={{ marginBottom: 4 }}>Date Range</div>
+                            <RangePicker
+                                onChange={(dates) => setFilters(f => ({ ...f, date_range: dates }))}
+                            />
+                        </div>
+                        <div>
+                            <div style={{ marginBottom: 4 }}>Action</div>
+                            <Select
+                                placeholder="All Actions"
+                                allowClear
+                                style={{ width: 150 }}
+                                onChange={val => setFilters(f => ({ ...f, action: val }))}
+                            >
+                                <Option value="CREATE">CREATE</Option>
+                                <Option value="UPDATE">UPDATE</Option>
+                                <Option value="DELETE">DELETE</Option>
+                                <Option value="LOGIN">LOGIN</Option>
+                                <Option value="RESET_PASSWORD">RESET_PASSWORD</Option>
+                            </Select>
+                        </div>
+                        <div>
+                            <div style={{ marginBottom: 4 }}>Entity Type</div>
+                            <Select
+                                placeholder="All Types"
+                                allowClear
+                                style={{ width: 150 }}
+                                onChange={val => setFilters(f => ({ ...f, entity_type: val }))}
+                            >
+                                <Option value="Asset">Asset</Option>
+                                <Option value="User">User</Option>
+                                <Option value="Branch">Branch</Option>
+                            </Select>
+                        </div>
+                    </Space>
+                </div>
             </Card>
 
-            <Table
-                columns={columns}
-                dataSource={logs?.data || []}
-                loading={isLoading}
-                rowKey="id"
-                pagination={{
-                    current: page,
-                    total: logs?.total,
-                    pageSize: logs?.per_page || 15,
-                    onChange: (p) => setPage(p),
-                }}
-            />
+            {isMobile ? (
+                <div className="audit-log__cards">
+                    {(logs?.data || []).map((log: AuditLog) => (
+                        <Card key={log.id} className="audit-log__card" size="small">
+                            <div className="audit-log__card-row">
+                                <div className="audit-log__card-meta">
+                                    {dayjs(log.created_at).format('YYYY-MM-DD HH:mm:ss')}
+                                </div>
+                            </div>
+                            <div className="audit-log__card-row">
+                                <div className="audit-log__card-main">
+                                    <Tag color={getActionColor(log.action)}>{log.action}</Tag>
+                                    <span className="audit-log__card-entity">
+                                        {log.entity_type ? (
+                                            <>
+                                                <Text code>{log.entity_type}</Text>
+                                                {log.entity_id && <Text type="secondary"> #{log.entity_id}</Text>}
+                                            </>
+                                        ) : '-'}
+                                    </span>
+                                </div>
+                                <Button
+                                    type="text"
+                                    aria-label="View details"
+                                    className="audit-log__card-detail"
+                                    icon={<InfoCircleOutlined />}
+                                    onClick={() => Modal.info({
+                                        title: 'Log Entry Details',
+                                        width: 800,
+                                        content: (
+                                            <pre style={{ maxHeight: 500, overflow: 'auto' }}>
+                                                {JSON.stringify(log, null, 2)}
+                                            </pre>
+                                        )
+                                    })}
+                                />
+                            </div>
+                        </Card>
+                    ))}
+                    <div className="audit-log__pagination">
+                        <Pagination
+                            current={page}
+                            total={logs?.total}
+                            pageSize={logs?.per_page || 15}
+                            onChange={(p) => setPage(p)}
+                            size="small"
+                        />
+                    </div>
+                </div>
+            ) : (
+                <Table
+                    columns={columns}
+                    dataSource={logs?.data || []}
+                    loading={isLoading}
+                    rowKey="id"
+                    pagination={{
+                        current: page,
+                        total: logs?.total,
+                        pageSize: logs?.per_page || 15,
+                        onChange: (p) => setPage(p),
+                    }}
+                />
+            )}
         </div>
     );
 };

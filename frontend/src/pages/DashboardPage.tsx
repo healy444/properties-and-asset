@@ -14,6 +14,7 @@ import {
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { useAuth } from '../context/AuthContext';
 import { useThemeMode } from '../context/ThemeContext';
+import './DashboardPage.css';
 
 const { Title, Text } = Typography;
 
@@ -209,13 +210,6 @@ const DashboardPage: React.FC = () => {
         background: token.colorBgContainer,
     };
 
-    const metricsGridStyle: React.CSSProperties = {
-        display: 'grid',
-        gap: 16,
-        gridTemplateColumns: 'repeat(5, minmax(180px, 1fr))',
-        minWidth: 900,
-    };
-
     const dashboardClass = mode === 'dark' ? 'dashboard-page dark' : 'dashboard-page';
 
     return (
@@ -250,8 +244,11 @@ const DashboardPage: React.FC = () => {
 
             {/* Top Row: Key Metrics */}
             <div style={sectionLabelStyle}>Key metrics</div>
-            <div style={{ overflowX: 'auto', background: token.colorBgContainer, borderRadius: 14, padding: 6 }}>
-                <div style={metricsGridStyle}>
+            <div
+                className="dashboard-metrics"
+                style={{ background: token.colorBgContainer, borderRadius: 14, padding: 6 }}
+            >
+                <div className="dashboard-metrics__grid">
                     <Card bordered={false} hoverable style={elevatedCardStyle} bodyStyle={{ padding: '16px 18px' }}>
                         <Statistic
                             title="Total Assets"

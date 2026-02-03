@@ -1,0 +1,21 @@
+.dashboard-metrics {
+  overflow-x: auto;
+}
+
+.dashboard-metrics__grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(5, minmax(180px, 1fr));
+  min-width: 900px;
+}
+
+@media (max-width: 768px) {
+  .dashboard-metrics {
+    overflow-x: visible;
+  }
+
+  .dashboard-metrics__grid {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+}

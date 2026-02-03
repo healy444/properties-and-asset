@@ -1,0 +1,15 @@
+.asset-details-drawer .ant-descriptions-item-label,
+.asset-details-drawer .ant-descriptions-item-content {
+  white-space: normal;
+  word-break: break-word;
+}
+
+@media (max-width: 768px) {
+  .asset-details-drawer .ant-descriptions {
+    table-layout: fixed;
+  }
+
+  .asset-details-drawer .ant-descriptions-item-label {
+    width: 40%;
+  }
+}

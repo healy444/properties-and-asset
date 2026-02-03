@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Tabs, Table, Button, Space, Card, Modal, Form, Input, Select, Switch, message, Tooltip, Tag } from 'antd';
+import { Tabs, Table, Button, Space, Card, Modal, Form, Input, Select, Switch, message, Tooltip, Tag, Pagination } from 'antd';
 import {
     PlusOutlined,
     EditOutlined,
@@ -9,6 +9,8 @@ import {
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '../api/axios';
+import './ReferenceManagementPage.css';
+import useMediaQuery from '../hooks/useMediaQuery';
 
 const { TabPane } = Tabs;
 
@@ -21,6 +23,7 @@ interface ReferenceConfig {
 
 const ReferenceManagementPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState('branches');
+    const isMobile = useMediaQuery('(max-width: 768px)');
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [form] = Form.useForm();
@@ -138,6 +141,26 @@ const ReferenceManagementPage: React.FC = () => {
         setIsModalVisible(true);
     };
 
+    const renderStatusTag = (active: boolean) => (
+        <Tag color={active ? 'success' : 'error'}>{active ? 'ACTIVE' : 'INACTIVE'}</Tag>
+    );
+
+    const renderRowActions = (record: any) => (
+        <Space>
+            <Tooltip title="Edit">
+                <Button type="text" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+            </Tooltip>
+            <Tooltip title={record.is_active ? 'Deactivate' : 'Activate'}>
+                <Button
+                    type="text"
+                    danger={record.is_active}
+                    icon={record.is_active ? <StopOutlined /> : <CheckCircleOutlined />}
+                    onClick={() => toggleMutation.mutate(record.id)}
+                />
+            </Tooltip>
+        </Space>
+    );
+
     const baseColumns = [
         {
             title: 'Name',
@@ -154,28 +177,12 @@ const ReferenceManagementPage: React.FC = () => {
             title: 'Status',
             dataIndex: 'is_active',
             key: 'is_active',
-            render: (active: boolean) => (
-                <Tag color={active ? 'success' : 'error'}>{active ? 'ACTIVE' : 'INACTIVE'}</Tag>
-            ),
+            render: (active: boolean) => renderStatusTag(active),
         },
         {
             title: 'Actions',
             key: 'actions',
-            render: (_: any, record: any) => (
-                <Space>
-                    <Tooltip title="Edit">
-                        <Button type="text" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-                    </Tooltip>
-                    <Tooltip title={record.is_active ? 'Deactivate' : 'Activate'}>
-                        <Button
-                            type="text"
-                            danger={record.is_active}
-                            icon={record.is_active ? <StopOutlined /> : <CheckCircleOutlined />}
-                            onClick={() => toggleMutation.mutate(record.id)}
-                        />
-                    </Tooltip>
-                </Space>
-            ),
+            render: (_: any, record: any) => renderRowActions(record),
         }
     ];
 
@@ -273,15 +280,29 @@ const ReferenceManagementPage: React.FC = () => {
     };
 
     return (
-        <div>
-            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ margin: 0 }}>Reference Data Management</h2>
-                <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>Add New</Button>
+        <div className="reference-management">
+            <div style={{ marginBottom: 16 }}>
+                <h2 style={{ margin: 0 }} className="reference-management__title">Reference Data Management</h2>
             </div>
 
             <Card>
+                {isMobile && (
+                    <Select
+                        value={activeTab}
+                        onChange={(key) => {
+                            setActiveTab(key);
+                            refetch();
+                        }}
+                        className="reference-management__tab-select"
+                        options={Object.values(configs).map((config) => ({
+                            label: config.label,
+                            value: config.key,
+                        }))}
+                    />
+                )}
                 <Tabs
                     activeKey={activeTab}
+                    tabBarStyle={isMobile ? { display: 'none' } : undefined}
                     onChange={(key) => {
                         setActiveTab(key);
                         refetch();
@@ -290,17 +311,59 @@ const ReferenceManagementPage: React.FC = () => {
                     {Object.values(configs).map(config => (
                         <TabPane tab={config.label} key={config.key}>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+                                <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} className="reference-management__add">
+                                    Add New
+                                </Button>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
                                 <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isLoading}>
                                     Refresh
                                 </Button>
                             </div>
-                            <Table
-                                columns={config.columns}
-                                dataSource={records || []}
-                                loading={isLoading}
-                                rowKey="id"
-                                pagination={{ pageSize: 10 }}
-                            />
+                            {isMobile ? (
+                                <div className="reference-management__cards">
+                                    {(records || []).map((record: any) => (
+                                        <Card key={record.id} size="small" className="reference-management__card">
+                                            <div className="reference-management__card-row">
+                                                <strong>{record.name}</strong>
+                                                {renderStatusTag(record.is_active)}
+                                            </div>
+                                            <div className="reference-management__card-row">
+                                                <span className="reference-management__card-meta">
+                                                    {record.code || '-'}
+                                                </span>
+                                                {record.parent?.name && (
+                                                    <span className="reference-management__card-meta">
+                                                        {record.parent.name}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="reference-management__card-row">
+                                                <div className="reference-management__card-actions">
+                                                    {renderRowActions(record)}
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    ))}
+                                    <div className="reference-management__pagination">
+                                        <Pagination
+                                            current={records?.current_page}
+                                            pageSize={records?.per_page || 10}
+                                            total={records?.total}
+                                            onChange={() => refetch()}
+                                            size="small"
+                                        />
+                                    </div>
+                                </div>
+                            ) : (
+                                <Table
+                                    columns={config.columns}
+                                    dataSource={records || []}
+                                    loading={isLoading}
+                                    rowKey="id"
+                                    pagination={{ pageSize: 10 }}
+                                />
+                            )}
                         </TabPane>
                     ))}
                 </Tabs>

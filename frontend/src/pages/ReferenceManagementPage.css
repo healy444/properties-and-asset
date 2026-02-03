@@ -1,0 +1,64 @@
+.reference-management__add {
+  width: auto;
+}
+
+.reference-management__tab-select {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+body[data-theme='dark'] .reference-management .ant-tabs-tab-btn {
+  color: #ffffff;
+}
+
+body[data-theme='dark'] .reference-management .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: #ffffff;
+}
+
+body[data-theme='dark'] .reference-management__title {
+  color: #f8fafc;
+}
+
+.reference-management__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reference-management__card {
+  border-radius: 12px;
+}
+
+.reference-management__card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reference-management__card-row + .reference-management__card-row {
+  margin-top: 6px;
+}
+
+.reference-management__card-meta {
+  font-size: 13px;
+  color: #475569;
+}
+
+.reference-management__card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reference-management__pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+@media (max-width: 768px) {
+  .reference-management__add {
+    width: 100%;
+  }
+}

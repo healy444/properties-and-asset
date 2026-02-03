@@ -1,18 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Layout, Menu, Button, theme, Avatar, Dropdown, Modal, Tooltip } from 'antd';
+import type { MenuProps } from 'antd';
 import {
     MenuFoldOutlined,
     MenuUnfoldOutlined,
-    DashboardOutlined,
-    DatabaseOutlined,
-    TeamOutlined,
-    HistoryOutlined,
     LogoutOutlined,
     UserOutlined,
-    SettingOutlined,
-    BankOutlined,
-    ShopOutlined,
-    ApiOutlined,
     BulbOutlined,
     MoonOutlined,
 } from '@ant-design/icons';
@@ -21,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import brandLogoLight from '../assets/brand-logo.png';
 import brandLogoDark from '../assets/brand-logo-dark.png';
 import { useThemeMode } from '../context/ThemeContext';
+import { getDesktopNavItems } from '../navigation/navItems';
 
 const { Header, Sider, Content } = Layout;
 
@@ -52,61 +46,7 @@ const MainLayout: React.FC = () => {
         });
     };
 
-    const isBranchCustodian = user?.role === 'branch_custodian';
-
-    const menuItems = [
-        {
-            key: '/dashboard',
-            icon: <DashboardOutlined />,
-            label: 'Dashboard',
-        },
-        {
-            key: 'credit',
-            icon: <BankOutlined />,
-            label: 'Credit',
-            children: [
-                {
-                    key: '/assets',
-                    label: 'Asset Management',
-                },
-                !isBranchCustodian ? {
-                    key: '/credit/properties',
-                    label: 'Properties',
-                } : null,
-            ]
-                .filter(Boolean) as any[],
-        },
-        {
-            key: '/resort',
-            icon: <ShopOutlined />,
-            label: 'Resort',
-            hidden: isBranchCustodian,
-        },
-        {
-            key: '/cable',
-            icon: <ApiOutlined />,
-            label: 'Cable',
-            hidden: isBranchCustodian,
-        },
-        {
-            key: '/audit-logs',
-            icon: <HistoryOutlined />,
-            label: 'Audit Trail',
-            hidden: user?.role !== 'super_admin',
-        },
-        {
-            key: '/users',
-            icon: <TeamOutlined />,
-            label: 'User Management',
-            hidden: !(user?.role === 'super_admin' || user?.role === 'admin'),
-        },
-        {
-            key: '/references',
-            icon: <SettingOutlined />,
-            label: 'Reference Data',
-            hidden: !(user?.role === 'super_admin' || user?.role === 'admin') || isBranchCustodian,
-        },
-    ].filter(item => !item.hidden);
+    const menuItems = getDesktopNavItems(user ?? null) as MenuProps['items'];
 
     const userMenuItems = [
         {

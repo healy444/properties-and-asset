@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import api from '../api/axios';
 import type { Asset, AuditLog } from '../types';
 import dayjs from 'dayjs';
+import useMediaQuery from '../hooks/useMediaQuery';
+import './AssetDetailsDrawer.css';
 
 const { Text } = Typography;
 
@@ -14,6 +16,7 @@ interface AssetDetailsDrawerProps {
 }
 
 const AssetDetailsDrawer: React.FC<AssetDetailsDrawerProps> = ({ id, visible, onClose }) => {
+    const isMobile = useMediaQuery('(max-width: 768px)');
     const { data: asset, isLoading } = useQuery<Asset>({
         queryKey: ['asset-details', id],
         queryFn: () => api.get(`/assets/${id}`).then(res => res.data),
@@ -66,8 +69,9 @@ const AssetDetailsDrawer: React.FC<AssetDetailsDrawerProps> = ({ id, visible, on
             placement="right"
             onClose={onClose}
             open={visible}
-            width={700}
+            width={isMobile ? '100%' : 700}
             loading={isLoading}
+            className="asset-details-drawer"
         >
             {asset && (
                 <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -77,7 +81,7 @@ const AssetDetailsDrawer: React.FC<AssetDetailsDrawerProps> = ({ id, visible, on
                         typedAsset.assetType = typedAsset.assetType || typedAsset.asset_type;
                         return null;
                     })()}
-                    <Descriptions title="General Information" bordered column={2}>
+                    <Descriptions title="General Information" bordered column={isMobile ? 1 : 2}>
                         <Descriptions.Item label="Code" span={2}>
                             {asset.is_draft ? <Tag color="orange">DRAFT</Tag> : <Text strong>{asset.asset_code}</Text>}
                         </Descriptions.Item>
@@ -93,7 +97,7 @@ const AssetDetailsDrawer: React.FC<AssetDetailsDrawerProps> = ({ id, visible, on
                         </Descriptions.Item>
                     </Descriptions>
 
-                    <Descriptions title="Financials" bordered column={2}>
+                    <Descriptions title="Financials" bordered column={isMobile ? 1 : 2}>
                         <Descriptions.Item label="Purchase Date">
                             {asset.date_of_purchase ? dayjs(asset.date_of_purchase).format('YYYY-MM-DD') : '-'}
                         </Descriptions.Item>
@@ -112,7 +116,7 @@ const AssetDetailsDrawer: React.FC<AssetDetailsDrawerProps> = ({ id, visible, on
                     </Descriptions>
 
                     {(asset.delete_request_status !== 'none' || asset.deleted_at) && (
-                        <Descriptions title="Deletion Information" bordered column={2}>
+                        <Descriptions title="Deletion Information" bordered column={isMobile ? 1 : 2}>
                             <Descriptions.Item label="Status">
                                 <Tag color={
                                     asset.delete_request_status === 'approved' || asset.deleted_at ? 'error' :

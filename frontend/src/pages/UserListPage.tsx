@@ -15,6 +15,7 @@ import type { User, UserRole } from '../types';
 import dayjs from 'dayjs';
 import { useAuth } from '../context/AuthContext';
 import { useReferences } from '../hooks/useReferences';
+import './UserListPage.css';
 
 const { Option } = Select;
 
@@ -108,16 +109,19 @@ const UserListPage: React.FC = () => {
             title: 'Username',
             dataIndex: 'username',
             key: 'username',
+            responsive: ['md'],
         },
         {
             title: 'Email',
             dataIndex: 'email',
             key: 'email',
+            responsive: ['md'],
         },
         {
             title: 'Role',
             dataIndex: 'role',
             key: 'role',
+            responsive: ['md'],
             render: (role: UserRole) => {
                 const color = role === 'super_admin' ? 'magenta' : role === 'admin' ? 'blue' : 'cyan';
                 return (
@@ -137,6 +141,7 @@ const UserListPage: React.FC = () => {
             title: 'Status',
             dataIndex: 'is_active',
             key: 'is_active',
+            responsive: ['md'],
             render: (isActive: boolean) => (
                 <Tag color={isActive ? 'success' : 'error'}>
                     {isActive ? 'ACTIVE' : 'INACTIVE'}
@@ -147,13 +152,15 @@ const UserListPage: React.FC = () => {
             title: 'Created At',
             dataIndex: 'created_at',
             key: 'created_at',
+            responsive: ['md'],
             render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
         },
         {
-            title: 'Actions',
+            title: <span className="user-list__actions-title">Actions</span>,
             key: 'actions',
+            className: 'user-list__actions-col',
             render: (_unused: any, user: User) => (
-                <Space size="middle">
+                <Space size="middle" className="user-list__actions">
                     {!(currentUser?.role === 'admin' && user.role === 'super_admin') && (
                         <>
                             <Tooltip title="Edit">
@@ -188,31 +195,33 @@ const UserListPage: React.FC = () => {
     ];
 
     return (
-        <div>
-            <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ margin: 0 }}>User Management</h2>
+        <div className="user-list">
+            <div className="user-list__header">
+                <h2 style={{ margin: 0 }} className="user-list__title">User Management</h2>
                 <Button
                     type="primary"
                     icon={<UserAddOutlined />}
                     onClick={handleAdd}
+                    className="user-list__add-button"
+                    size="large"
                 >
                     Add User
                 </Button>
             </div>
 
             <Card style={{ marginBottom: 16 }}>
-                <Space wrap>
+                <Space wrap className="user-list__filters">
                     <Input
                         placeholder="Search users..."
                         prefix={<SearchOutlined />}
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        style={{ width: 250 }}
+                        className="user-list__filter user-list__filter--search"
                     />
                     <Select
                         placeholder="Select Role"
                         allowClear
-                        style={{ width: 150 }}
+                        className="user-list__filter user-list__filter--role"
                         onChange={value => setRole(value)}
                     >
                         {currentUser?.role === 'super_admin' && <Option value="super_admin">Super Admin</Option>}

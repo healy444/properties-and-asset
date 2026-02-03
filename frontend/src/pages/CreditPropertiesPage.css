@@ -1,0 +1,7 @@
+.credit-properties__title {
+  color: inherit;
+}
+
+body[data-theme='dark'] .credit-properties__title {
+  color: #f8fafc;
+}

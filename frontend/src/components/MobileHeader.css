@@ -1,0 +1,116 @@
+.mobile-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px;
+  background: #ffffff;
+  backdrop-filter: blur(8px);
+  transition: transform 0.25s ease;
+}
+
+.mobile-header--hidden {
+  transform: translateY(-110%);
+}
+
+.mobile-header__edge-hit {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 18px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  z-index: 21;
+}
+body[data-theme='dark'] .mobile-header {
+  background: #0b1324;
+}
+
+.mobile-header__left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mobile-header__greeting {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.mobile-header__name {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+body[data-theme='dark'] .mobile-header__greeting {
+  color: #94a3b8;
+}
+
+body[data-theme='dark'] .mobile-header__name {
+  color: #e5e7eb;
+}
+
+.mobile-header__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mobile-header__avatar {
+  cursor: pointer;
+  background-color: #1677ff;
+}
+
+.mobile-header__theme-button {
+  padding: 0;
+}
+
+.mobile-header__theme-track {
+  width: 48px;
+  height: 24px;
+  border-radius: 20px;
+  background: #e6e8f0;
+  position: relative;
+  padding: 2px 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: background 0.2s ease;
+}
+
+body[data-theme='dark'] .mobile-header__theme-track {
+  background: #1f2937;
+}
+
+.mobile-header__theme-icon {
+  font-size: 12px;
+  color: #1f2937;
+}
+
+body[data-theme='dark'] .mobile-header__theme-icon {
+  color: #9ca3af;
+}
+
+.mobile-header__theme-icon:last-child {
+  margin-left: auto;
+}
+
+body[data-theme='dark'] .mobile-header__theme-icon:last-child {
+  color: #fefefe;
+}
+
+.mobile-header__theme-thumb {
+  position: absolute;
+  top: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 14px;
+  background: #2f43d9;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  transition: left 0.2s ease;
+}
