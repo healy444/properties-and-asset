@@ -136,8 +136,8 @@ export const getDesktopNavItems = (user: User | null) => {
 };
 
 export const getMobileNavItems = (user: User | null): MobileNavItem[] => {
-  const buildMobileChildren = (items: NavItemConfig[]) =>
-    items.flatMap((item) => {
+  const buildMobileChildren = (items: NavItemConfig[]): MobileNavItem[] =>
+    items.flatMap<MobileNavItem>((item) => {
       if (item.hidden || item.mobileHidden) {
         return [];
       }
@@ -158,7 +158,7 @@ export const getMobileNavItems = (user: User | null): MobileNavItem[] => {
     });
 
   const collect = (items: NavItemConfig[]): MobileNavItem[] =>
-    items.flatMap((item) => {
+    items.flatMap<MobileNavItem>((item) => {
       if (item.hidden || item.mobileHidden) {
         return [];
       }

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Table, Button, Tag, Space, Card, Input, Select, Modal, message, Form, Switch, Tooltip } from 'antd';
+import { Table, Button, Tag, Space, Card, Input, Select, Modal, message, Form, Tooltip } from 'antd';
+import type { Breakpoint } from 'antd/es/_util/responsiveObserver';
+import type { ColumnsType } from 'antd/es/table';
 import {
     UserAddOutlined,
     SearchOutlined,
@@ -99,7 +101,8 @@ const UserListPage: React.FC = () => {
         setIsPasswordModalVisible(true);
     };
 
-    const columns = [
+    const responsiveMd: Breakpoint[] = ['md'];
+    const columns: ColumnsType<User> = [
         {
             title: 'Name',
             key: 'name',
@@ -109,19 +112,19 @@ const UserListPage: React.FC = () => {
             title: 'Username',
             dataIndex: 'username',
             key: 'username',
-            responsive: ['md'],
+            responsive: responsiveMd,
         },
         {
             title: 'Email',
             dataIndex: 'email',
             key: 'email',
-            responsive: ['md'],
+            responsive: responsiveMd,
         },
         {
             title: 'Role',
             dataIndex: 'role',
             key: 'role',
-            responsive: ['md'],
+            responsive: responsiveMd,
             render: (role: UserRole) => {
                 const color = role === 'super_admin' ? 'magenta' : role === 'admin' ? 'blue' : 'cyan';
                 return (
@@ -141,7 +144,7 @@ const UserListPage: React.FC = () => {
             title: 'Status',
             dataIndex: 'is_active',
             key: 'is_active',
-            responsive: ['md'],
+            responsive: responsiveMd,
             render: (isActive: boolean) => (
                 <Tag color={isActive ? 'success' : 'error'}>
                     {isActive ? 'ACTIVE' : 'INACTIVE'}
@@ -152,7 +155,7 @@ const UserListPage: React.FC = () => {
             title: 'Created At',
             dataIndex: 'created_at',
             key: 'created_at',
-            responsive: ['md'],
+            responsive: responsiveMd,
             render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
         },
         {

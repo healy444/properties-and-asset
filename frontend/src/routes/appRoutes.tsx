@@ -1,4 +1,3 @@
-import React from 'react';
 import AssetFormPage from '../pages/AssetFormPage';
 import AssetListPage from '../pages/AssetListPage';
 import AuditLogPage from '../pages/AuditLogPage';

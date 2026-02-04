@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Table, Card, Tag, Space, Input, Select, Button, Typography, DatePicker, Tooltip, Modal, Pagination } from 'antd';
-import { SearchOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { Table, Card, Tag, Space, Select, Button, Typography, DatePicker, Tooltip, Modal, Pagination } from 'antd';
+import type { Breakpoint } from 'antd/es/_util/responsiveObserver';
+import type { ColumnsType } from 'antd/es/table';
+import { ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
 import axios from '../api/axios';
 import type { AuditLog } from '../types';
@@ -21,7 +23,6 @@ const AuditLogPage: React.FC = () => {
         entity_id: undefined,
         date_range: null as any,
     });
-    const [search, setSearch] = useState('');
     const isMobile = useMediaQuery('(max-width: 768px)');
 
     const { data: logs, isLoading, refetch } = useQuery({
@@ -54,7 +55,8 @@ const AuditLogPage: React.FC = () => {
         }
     };
 
-    const columns = [
+    const responsiveMd: Breakpoint[] = ['md'];
+    const columns: ColumnsType<AuditLog> = [
         {
             title: 'Timestamp',
             dataIndex: 'created_at',
@@ -66,7 +68,7 @@ const AuditLogPage: React.FC = () => {
             title: 'User',
             key: 'user',
             width: 220,
-            responsive: ['md'],
+            responsive: responsiveMd,
             render: (log: AuditLog) => (
                 <Space size={4} style={{ whiteSpace: 'nowrap' }}>
                     <Tooltip title={`ID: ${log.user_id}`}>
@@ -101,7 +103,7 @@ const AuditLogPage: React.FC = () => {
         {
             title: 'Changes',
             key: 'changes',
-            responsive: ['md'],
+            responsive: responsiveMd,
             render: (log: AuditLog) => {
                 if (log.old_values || log.new_values) {
                     const keys = Object.keys(log.new_values || log.old_values || {});
@@ -126,7 +128,7 @@ const AuditLogPage: React.FC = () => {
             title: 'IP Address',
             dataIndex: 'ip_address',
             key: 'ip_address',
-            responsive: ['md'],
+            responsive: responsiveMd,
         },
         {
             title: 'Details',

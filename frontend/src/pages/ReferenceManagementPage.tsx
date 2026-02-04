@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Tabs, Table, Button, Space, Card, Modal, Form, Input, Select, Switch, message, Tooltip, Tag, Pagination } from 'antd';
+import { Tabs, Table, Button, Space, Card, Modal, Form, Input, Select, message, Tooltip, Tag, Pagination } from 'antd';
 import {
     PlusOutlined,
     EditOutlined,

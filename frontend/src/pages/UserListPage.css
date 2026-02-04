@@ -15,6 +15,11 @@
   align-items: flex-end;
 }
 
+.user-list__title {
+  align-self: flex-start;
+  text-align: left;
+}
+
 .user-list__filters {
   row-gap: 12px;
   width: 100%;

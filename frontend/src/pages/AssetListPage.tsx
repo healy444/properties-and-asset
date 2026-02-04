@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Table, Card, Input, Select, Button, Space, Tag, Typography, message, Badge, Modal, Radio, Upload, Tooltip, Pagination } from 'antd';
+import type { Breakpoint } from 'antd/es/_util/responsiveObserver';
+import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, DownloadOutlined, RollbackOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -11,7 +13,6 @@ import AssetDetailsDrawer from '../components/AssetDetailsDrawer';
 import useMediaQuery from '../hooks/useMediaQuery';
 import './AssetListPage.css';
 
-const { Title } = Typography;
 const { confirm } = Modal;
 
 const AssetListPage: React.FC = () => {
@@ -512,7 +513,8 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
         );
     };
 
-    const columns = [
+    const responsiveMd: Breakpoint[] = ['md'];
+    const columns: ColumnsType<Asset> = [
         {
             title: 'Code',
             dataIndex: 'asset_code',
@@ -535,26 +537,26 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
             title: 'Category',
             dataIndex: ['category', 'name'],
             key: 'category',
-            responsive: ['md'],
+            responsive: responsiveMd,
         },
         {
             title: 'Cost',
             dataIndex: 'acquisition_cost',
             key: 'acquisition_cost',
-            responsive: ['md'],
+            responsive: responsiveMd,
             render: (cost: number) => `₱${Number(cost).toLocaleString()}`,
         },
         {
             title: 'Condition',
             dataIndex: 'condition',
             key: 'condition',
-            responsive: ['md'],
+            responsive: responsiveMd,
             render: (condition: string) => <Tag color={condition === 'poor' ? 'error' : 'processing'}>{condition.toUpperCase()}</Tag>,
         },
         {
             title: 'Status',
             key: 'status',
-            responsive: ['md'],
+            responsive: responsiveMd,
             render: (_unused: any, record: Asset) => renderStatusBadge(record),
         },
         {
