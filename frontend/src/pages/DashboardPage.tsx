@@ -1,16 +1,17 @@
 ﻿import React from 'react';
 import { Card, Col, Row, Statistic, Table, Typography, Spin, Tag, theme } from 'antd';
 import { ShopOutlined } from '@ant-design/icons';
-import { Pie } from '@ant-design/plots';
-import { Bar } from 'react-chartjs-2';
+import { Bar, Doughnut } from 'react-chartjs-2';
 import {
     Chart as ChartJS,
     CategoryScale,
     LinearScale,
     BarElement,
+    ArcElement,
     Tooltip,
     Legend,
 } from 'chart.js';
+import type { ChartOptions } from 'chart.js';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { useAuth } from '../context/AuthContext';
 import { useThemeMode } from '../context/ThemeContext';
@@ -18,7 +19,7 @@ import './DashboardPage.css';
 
 const { Title, Text } = Typography;
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
 
 const DashboardPage: React.FC = () => {
     const { data: stats, isLoading } = useDashboardStats();
@@ -36,61 +37,126 @@ const DashboardPage: React.FC = () => {
     }
 
     // Chart configs
-    const chartLabelColor = mode === 'dark' ? '#ffffff' : token.colorTextSecondary;
-    const conditionConfig = {
-        data: stats.by_condition,
-        angleField: 'count',
-        colorField: 'condition',
-        innerRadius: 0.45,
-        radius: 0.85,
-        theme: mode === 'dark' ? 'dark' : 'light',
-        label: {
-            text: 'count',
-            position: 'outside',
-            style: {
-                fill: chartLabelColor,
+    const conditionPalette = ['#3b4bff', '#ffb020', '#ff4d4f', '#22c55e', '#0ea5e9'];
+    const conditionItems = stats.by_condition?.length
+        ? stats.by_condition.map((item) => ({
+            name: String(item.condition ?? 'Unknown'),
+            count: Number(item.count || 0),
+        }))
+        : [{ name: 'No data', count: 0 }];
+
+    const conditionRingData = {
+        labels: conditionItems.map((item) => item.name),
+        datasets: [
+            {
+                label: 'Assets by condition',
+                data: conditionItems.map((item) => item.count),
+                backgroundColor: conditionItems.map(
+                    (_item, index) => conditionPalette[index % conditionPalette.length],
+                ),
+                borderWidth: 0,
+                borderRadius: 18,
+                spacing: 6,
+                hoverOffset: 0,
             },
-        },
-        legend: {
-            color: {
-                position: 'bottom',
-                rowPadding: 5,
-                label: {
-                    style: {
-                        fill: chartLabelColor,
-                    },
-                },
-            },
-        },
-        height: 300,
+        ],
     };
 
-    const categoryConfig = {
-        data: stats.by_category,
-        angleField: 'count',
-        colorField: 'name',
-        innerRadius: 0.45,
-        radius: 0.85,
-        theme: mode === 'dark' ? 'dark' : 'light',
-        label: {
-            text: 'count',
-            position: 'outside',
-            style: {
-                fill: chartLabelColor,
-            },
-        },
-        legend: {
-            color: {
-                position: 'bottom',
-                rowPadding: 5,
-                label: {
-                    style: {
-                        fill: chartLabelColor,
+    const conditionRingOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        rotation: -110,
+        circumference: 360,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: (context: any) => {
+                        const label = context.label ?? '';
+                        const value = Number(context.parsed ?? 0);
+                        return `${label}: ${value}`;
                     },
                 },
             },
         },
-        height: 300,
+    };
+
+    const categoryTotal = stats.by_category.reduce((sum, item) => sum + Number(item.count || 0), 0);
+    const categoryPalette = ['#2563eb', '#3b82f6', '#14b8a6', '#facc15', '#22c55e', '#f97316'];
+    const maxRings = 5;
+    const sortedCategories = [...stats.by_category].sort((a, b) => Number(b.count || 0) - Number(a.count || 0));
+    const ringItems = sortedCategories.slice(0, maxRings).map((item) => ({
+        name: item.name,
+        count: Number(item.count || 0),
+    }));
+    const remaining = sortedCategories.slice(maxRings).reduce((sum, item) => sum + Number(item.count || 0), 0);
+    if (remaining > 0) {
+        ringItems.push({ name: 'Other', count: remaining });
+    }
+    if (ringItems.length === 0) {
+        ringItems.push({ name: 'No data', count: 0 });
+    }
+    const safeTotal = categoryTotal || 1;
+    const trackColor = mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : '#f2f4f7';
+    const ringThickness = 13;
+    const ringGap = 2;
+    const outerRadius = 90;
+
+    const categoryRingData = {
+        labels: ringItems.map((item) => item.name),
+        datasets: ringItems.map((item, index) => {
+            const radius = outerRadius - index * (ringThickness + ringGap);
+            const cutout = radius - ringThickness;
+            return {
+                label: item.name,
+                data: [item.count, Math.max(safeTotal - item.count, 0)],
+                backgroundColor: [categoryPalette[index % categoryPalette.length], trackColor],
+                borderWidth: 0,
+                hoverOffset: 0,
+                radius: `${radius}%`,
+                cutout: `${Math.max(cutout, 10)}%`,
+            };
+        }),
+    };
+
+    const categoryRingOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '30%',
+        rotation: -90,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: (context: any) => {
+                        const label = context.dataset?.label ?? '';
+                        const value = Number(context.parsed ?? 0);
+                        return `${label}: ${value}`;
+                    },
+                },
+            },
+        },
+    };
+
+    const categoryCenterTextPlugin = {
+        id: 'categoryCenterText',
+        beforeDraw(chart: any) {
+            const { ctx, chartArea } = chart;
+            if (!chartArea) return;
+            const centerX = (chartArea.left + chartArea.right) / 2;
+            const centerY = (chartArea.top + chartArea.bottom) / 2;
+            ctx.save();
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = mode === 'dark' ? '#f8fafc' : '#f59e0b';
+            ctx.font = '600 13px "Segoe UI", sans-serif';
+            ctx.fillText('Total', centerX, centerY - 10);
+            ctx.fillStyle = mode === 'dark' ? '#e2e8f0' : '#94a3b8';
+            ctx.font = '600 20px "Segoe UI", sans-serif';
+            ctx.fillText(String(categoryTotal), centerX, centerY + 16);
+            ctx.restore();
+        },
     };
 
     const hasStackedBranches = (stats.by_branch_stacked || []).length > 0;
@@ -115,6 +181,10 @@ const DashboardPage: React.FC = () => {
         ? Array.from(new Set((branchData as any[]).map((item) => item.parent)))
         : (branchData as any[]).map((item) => item.name);
 
+    const branchCount = branchLabels.length || 1;
+    const baseThickness = Math.floor(260 / branchCount);
+    const barThickness = Math.min(10, Math.max(4, baseThickness)) + 3;
+
     const branchDatasets = hasStackedBranches
         ? Array.from(new Set((branchData as any[]).map((item) => item.branch))).map((branch, index) => {
             const color = palette[index % palette.length];
@@ -122,9 +192,14 @@ const DashboardPage: React.FC = () => {
                 label: branch,
                 data: branchLabels.map((parent) => {
                     const entry = (branchData as any[]).find((item) => item.parent === parent && item.branch === branch);
-                    return entry ? Number(entry.count) : 0;
+                    return entry ? Number(entry.count) : null;
                 }),
                 backgroundColor: color,
+                barThickness,
+                categoryPercentage: 0.7,
+                barPercentage: 0.5,
+                borderRadius: 15,
+                skipNull: true,
             };
         })
         : [
@@ -132,6 +207,10 @@ const DashboardPage: React.FC = () => {
                 label: 'Assets',
                 data: (branchData as any[]).map((item) => Number(item.count) || 0),
                 backgroundColor: token.colorPrimary,
+                barThickness,
+                categoryPercentage: 0.7,
+                barPercentage: 0.5,
+                borderRadius: 15,
             },
         ];
 
@@ -140,7 +219,7 @@ const DashboardPage: React.FC = () => {
         datasets: branchDatasets,
     };
 
-    const branchChartOptions = {
+    const branchChartOptions: ChartOptions<'bar'> = {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
@@ -166,21 +245,32 @@ const DashboardPage: React.FC = () => {
         },
         scales: {
             x: {
-                stacked: true,
+                type: 'category' as const,
+                stacked: false,
+                offset: true,
                 ticks: {
                     maxRotation: 45,
                     minRotation: 45,
+                    color: token.colorTextSecondary,
+                    font: { size: 11 },
+                    align: 'center' as const,
                 },
                 grid: {
                     display: false,
                 },
             },
             y: {
-                stacked: true,
+                type: 'linear' as const,
+                stacked: false,
                 beginAtZero: true,
                 ticks: {
                     stepSize: 1,
+                    color: token.colorTextSecondary,
+                    font: { size: 11 },
                     callback: (value: string | number) => Number.isInteger(Number(value)) ? value : '',
+                },
+                grid: {
+                    color: mode === 'dark' ? 'rgba(148, 163, 184, 0.2)' : '#eef2f7',
                 },
             },
         },
@@ -304,13 +394,47 @@ const DashboardPage: React.FC = () => {
                 <Col xs={24} md={12}>
                     <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '12px 16px 8px' }}>
                         <Text type="secondary" style={sectionLabelStyle}>Assets by condition</Text>
-                        <Pie {...conditionConfig} />
+                        <div className="dashboard-radial dashboard-radial--condition">
+                            <div className="dashboard-radial__chart">
+                                <Doughnut data={conditionRingData} options={conditionRingOptions} />
+                            </div>
+                            <div className="dashboard-radial__legend">
+                                {conditionItems.map((item, index) => (
+                                    <div className="dashboard-radial__legend-item" key={item.name}>
+                                        <span
+                                            className="dashboard-radial__legend-dot"
+                                            style={{ backgroundColor: conditionPalette[index % conditionPalette.length] }}
+                                        />
+                                        <span className="dashboard-radial__legend-label">
+                                            {item.name}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </Card>
                 </Col>
                 <Col xs={24} md={12}>
                     <Card bordered={false} style={elevatedCardStyle} bodyStyle={{ padding: '12px 16px 8px' }}>
                         <Text type="secondary" style={sectionLabelStyle}>Assets by category</Text>
-                        <Pie {...categoryConfig} />
+                        <div className="dashboard-radial">
+                            <div className="dashboard-radial__chart">
+                                <Doughnut data={categoryRingData} options={categoryRingOptions} plugins={[categoryCenterTextPlugin]} />
+                            </div>
+                            <div className="dashboard-radial__legend">
+                                {ringItems.map((item, index) => (
+                                    <div className="dashboard-radial__legend-item" key={item.name}>
+                                        <span
+                                            className="dashboard-radial__legend-dot"
+                                            style={{ backgroundColor: categoryPalette[index % categoryPalette.length] }}
+                                        />
+                                        <span className="dashboard-radial__legend-label">
+                                            {item.name}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </Card>
                 </Col>
             </Row>
