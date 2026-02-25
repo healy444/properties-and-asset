@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Tabs, Table, Button, Space, Card, Modal, Form, Input, Select, message, Tooltip, Tag, Pagination } from 'antd';
+import { Tabs, Table, Button, Space, Card, Modal, Form, Input, Select, message, Tooltip, Tag, Pagination, Upload, Radio } from 'antd';
 import {
     PlusOutlined,
     EditOutlined,
     StopOutlined,
     CheckCircleOutlined,
-    ReloadOutlined
+    ReloadOutlined,
+    UploadOutlined,
+    DownloadOutlined
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '../api/axios';
@@ -25,6 +27,10 @@ const ReferenceManagementPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState('branches');
     const isMobile = useMediaQuery('(max-width: 768px)');
     const [isModalVisible, setIsModalVisible] = useState(false);
+    const [importModalVisible, setImportModalVisible] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [templateModalVisible, setTemplateModalVisible] = useState(false);
+    const [templateFormat, setTemplateFormat] = useState<'csv' | 'xlsx'>('csv');
     const [editingId, setEditingId] = useState<number | null>(null);
     const [form] = Form.useForm();
     const queryClient = useQueryClient();
@@ -128,6 +134,48 @@ const ReferenceManagementPage: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: ['references', activeTab] });
         }
     });
+
+    const importMutation = useMutation({
+        mutationFn: async (file: File) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await axios.post(`/references/${activeTab}/import`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            return response.data;
+        },
+        onSuccess: (response) => {
+            message.success(response?.message || 'Import completed');
+            queryClient.invalidateQueries({ queryKey: ['references', activeTab] });
+            setImportModalVisible(false);
+            setImportFile(null);
+        },
+        onError: (error: any) => {
+            const fallback = 'Import failed. Please check the file format and required columns.';
+            message.error(error.response?.data?.message || fallback);
+        }
+    });
+
+    const handleDownloadTemplate = async () => {
+        try {
+            const response = await axios.get(`/references/${activeTab}/import-template`, {
+                params: { format: templateFormat },
+                responseType: 'blob',
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            const timestamp = new Date().toISOString().replace(/[:T]/g, '-').split('.')[0];
+            link.setAttribute('download', `${activeTab}_import_template_${timestamp}.${templateFormat}`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            message.success('Template downloaded');
+        } catch (error: any) {
+            message.error(error.response?.data?.message || 'Template download failed');
+        }
+    };
 
     const handleAdd = () => {
         setEditingId(null);
@@ -311,14 +359,27 @@ const ReferenceManagementPage: React.FC = () => {
                     {Object.values(configs).map(config => (
                         <TabPane tab={config.label} key={config.key}>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-                                <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} className="reference-management__add">
-                                    Add New
-                                </Button>
-                            </div>
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-                                <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isLoading}>
-                                    Refresh
-                                </Button>
+                                <Space wrap>
+                                    <Button
+                                        icon={<UploadOutlined />}
+                                        loading={importMutation.isPending}
+                                        onClick={() => setImportModalVisible(true)}
+                                    >
+                                        Import
+                                    </Button>
+                                    <Button
+                                        icon={<DownloadOutlined />}
+                                        onClick={() => setTemplateModalVisible(true)}
+                                    >
+                                        Template
+                                    </Button>
+                                    <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isLoading}>
+                                        Refresh
+                                    </Button>
+                                    <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} className="reference-management__add">
+                                        Add New
+                                    </Button>
+                                </Space>
                             </div>
                             {isMobile ? (
                                 <div className="reference-management__cards">
@@ -384,6 +445,72 @@ const ReferenceManagementPage: React.FC = () => {
                 >
                     {configs[activeTab].fields}
                 </Form>
+            </Modal>
+
+            <Modal
+                title={`Import ${configs[activeTab].label}`}
+                open={importModalVisible}
+                onCancel={() => {
+                    setImportModalVisible(false);
+                    setImportFile(null);
+                }}
+                onOk={() => {
+                    if (!importFile) {
+                        message.error('Please select a file to upload.');
+                        return;
+                    }
+                    importMutation.mutate(importFile);
+                }}
+                okText="Upload"
+                confirmLoading={importMutation.isPending}
+                okButtonProps={{ disabled: !importFile }}
+            >
+                <Space direction="vertical" style={{ width: '100%' }} size="large">
+                    <Upload.Dragger
+                        accept=".csv,.xlsx,.xls"
+                        multiple={false}
+                        beforeUpload={(file) => {
+                            setImportFile(file);
+                            return false;
+                        }}
+                        fileList={importFile ? [{
+                            uid: importFile.name,
+                            name: importFile.name,
+                            status: 'done',
+                        }] : []}
+                        onRemove={() => {
+                            setImportFile(null);
+                            return true;
+                        }}
+                    >
+                        <p className="ant-upload-drag-icon">
+                            <UploadOutlined />
+                        </p>
+                        <p className="ant-upload-text">Drag and drop your file here</p>
+                        <p className="ant-upload-hint">Or click to browse. Accepted formats: CSV, XLSX.</p>
+                    </Upload.Dragger>
+                </Space>
+            </Modal>
+
+            <Modal
+                title={`Download ${configs[activeTab].label} Template`}
+                open={templateModalVisible}
+                onCancel={() => setTemplateModalVisible(false)}
+                onOk={handleDownloadTemplate}
+                okText="Download"
+            >
+                <Space direction="vertical" style={{ width: '100%' }} size="large">
+                    <div>
+                        <div style={{ marginBottom: 8, fontWeight: 500 }}>Choose file format</div>
+                        <Radio.Group
+                            onChange={(e) => setTemplateFormat(e.target.value)}
+                            value={templateFormat}
+                        >
+                            <Radio value="csv">CSV</Radio>
+                            <Radio value="xlsx">XLSX</Radio>
+                        </Radio.Group>
+                    </div>
+                </Space>
             </Modal>
         </div>
     );

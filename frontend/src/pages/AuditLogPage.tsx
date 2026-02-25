@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Table, Card, Tag, Space, Select, Button, Typography, DatePicker, Tooltip, Modal, Pagination } from 'antd';
+import { Table, Card, Tag, Space, Select, Button, Typography, DatePicker, Tooltip, Modal, Pagination, message } from 'antd';
 import type { Breakpoint } from 'antd/es/_util/responsiveObserver';
 import type { ColumnsType } from 'antd/es/table';
-import { ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import { useQuery } from '@tanstack/react-query';
+import { ReloadOutlined, InfoCircleOutlined, DownloadOutlined } from '@ant-design/icons';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import axios from '../api/axios';
 import type { AuditLog } from '../types';
 import dayjs from 'dayjs';
@@ -25,21 +25,50 @@ const AuditLogPage: React.FC = () => {
     });
     const isMobile = useMediaQuery('(max-width: 768px)');
 
+    const buildParams = () => {
+        const params: any = {
+            per_page: 15,
+            ...filters
+        };
+        if (filters.date_range) {
+            params.start_date = filters.date_range[0].format('YYYY-MM-DD');
+            params.end_date = filters.date_range[1].format('YYYY-MM-DD');
+        }
+        return params;
+    };
+
     const { data: logs, isLoading, refetch } = useQuery({
         queryKey: ['audit-logs', page, filters],
         queryFn: async () => {
-            const params: any = {
-                page,
-                per_page: 15,
-                ...filters
-            };
-            if (filters.date_range) {
-                params.start_date = filters.date_range[0].format('YYYY-MM-DD');
-                params.end_date = filters.date_range[1].format('YYYY-MM-DD');
-            }
+            const params = { ...buildParams(), page };
             const response = await axios.get('/audit-logs', { params });
             return response.data;
         }
+    });
+
+    const exportMutation = useMutation({
+        mutationFn: async () => {
+            const response = await axios.get('/audit-logs/export', {
+                params: buildParams(),
+                responseType: 'blob',
+            });
+            return response;
+        },
+        onSuccess: (response) => {
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            const timestamp = new Date().toISOString().replace(/[:T]/g, '-').split('.')[0];
+            link.setAttribute('download', `audit_logs_${timestamp}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            message.success('Audit logs exported successfully');
+        },
+        onError: (error: any) => {
+            message.error(error.response?.data?.message || 'Export failed');
+        },
     });
 
     const getActionColor = (action: string) => {
@@ -108,7 +137,7 @@ const AuditLogPage: React.FC = () => {
                 if (log.old_values || log.new_values) {
                     const keys = Object.keys(log.new_values || log.old_values || {});
                     return (
-                        <div style={{ maxWidth: 300 }}>
+                        <div style={{ maxWidth: 280 }}>
                             {keys.slice(0, 3).map(key => (
                                 <div key={key} style={{ fontSize: '12px' }}>
                                     <Text type="secondary">{key}:</Text> {String(log.new_values?.[key] || '-')}
@@ -134,6 +163,8 @@ const AuditLogPage: React.FC = () => {
             title: 'Details',
             key: 'details',
             className: 'audit-log__details-col',
+            width: 90,
+            align: 'center',
             render: (log: AuditLog) => (
                 <Tooltip title="View details">
                     <Button
@@ -162,7 +193,14 @@ const AuditLogPage: React.FC = () => {
 
             <Card style={{ marginBottom: 16 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                        <Button
+                            icon={<DownloadOutlined />}
+                            loading={exportMutation.isPending}
+                            onClick={() => exportMutation.mutate()}
+                        >
+                            Export
+                        </Button>
                         <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
                             Refresh
                         </Button>

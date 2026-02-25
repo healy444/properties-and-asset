@@ -15,6 +15,11 @@
   align-items: flex-end;
 }
 
+.user-list__header-actions {
+  width: 100%;
+  justify-content: flex-end;
+}
+
 .user-list__title {
   align-self: flex-start;
   text-align: left;
@@ -48,6 +53,14 @@ body[data-theme='dark'] .user-list__title {
 
   .user-list__header {
     align-items: stretch;
+  }
+
+  .user-list__header-actions {
+    width: 100%;
+  }
+
+  .user-list__header-actions .ant-btn {
+    width: 100%;
   }
 
   .user-list__filter,

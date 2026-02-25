@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, Button, Tag, Space, Card, Input, Select, Modal, message, Form, Tooltip } from 'antd';
+import { Table, Button, Tag, Space, Card, Input, Select, Modal, message, Form, Tooltip, Upload, Radio } from 'antd';
 import type { Breakpoint } from 'antd/es/_util/responsiveObserver';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -9,7 +9,9 @@ import {
     EditOutlined,
     LockOutlined,
     StopOutlined,
-    CheckCircleOutlined
+    CheckCircleOutlined,
+    DownloadOutlined,
+    UploadOutlined
 } from '@ant-design/icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '../api/axios';
@@ -26,12 +28,17 @@ const UserListPage: React.FC = () => {
     const [role, setRole] = useState<string | undefined>(undefined);
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [isPasswordModalVisible, setIsPasswordModalVisible] = useState(false);
+    const [importModalVisible, setImportModalVisible] = useState(false);
+    const [templateModalVisible, setTemplateModalVisible] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [templateFormat, setTemplateFormat] = useState<'csv' | 'xlsx'>('csv');
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [form] = Form.useForm();
     const [passwordForm] = Form.useForm();
     const queryClient = useQueryClient();
     const { user: currentUser } = useAuth();
     const { branches } = useReferences();
+    const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
 
     const { data: users, isLoading, refetch } = useQuery({
         queryKey: ['users', search, role],
@@ -80,6 +87,48 @@ const UserListPage: React.FC = () => {
             passwordForm.resetFields();
         }
     });
+
+    const importMutation = useMutation({
+        mutationFn: async (file: File) => {
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await axios.post('/users/import', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            return response.data;
+        },
+        onSuccess: (response) => {
+            message.success(response?.message || 'Users imported successfully');
+            queryClient.invalidateQueries({ queryKey: ['users'] });
+            setImportModalVisible(false);
+            setImportFile(null);
+        },
+        onError: (error: any) => {
+            const fallback = 'Import failed. Please check the template and required columns, then try again.';
+            message.error(error.response?.data?.message || fallback);
+        }
+    });
+
+    const handleDownloadTemplate = async () => {
+        try {
+            const response = await axios.get('/users/import-template', {
+                params: { format: templateFormat },
+                responseType: 'blob',
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            const timestamp = new Date().toISOString().replace(/[:T]/g, '-').split('.')[0];
+            link.setAttribute('download', `users_import_template_${timestamp}.${templateFormat}`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            message.success('Template downloaded');
+        } catch (error: any) {
+            message.error(error.response?.data?.message || 'Template download failed');
+        }
+    };
 
     const handleEdit = (user: User) => {
         setEditingUser(user);
@@ -201,15 +250,34 @@ const UserListPage: React.FC = () => {
         <div className="user-list">
             <div className="user-list__header">
                 <h2 style={{ margin: 0 }} className="user-list__title">User Management</h2>
-                <Button
-                    type="primary"
-                    icon={<UserAddOutlined />}
-                    onClick={handleAdd}
-                    className="user-list__add-button"
-                    size="large"
-                >
-                    Add User
-                </Button>
+                <Space wrap className="user-list__header-actions">
+                    {isAdmin && (
+                        <>
+                            <Button
+                                icon={<DownloadOutlined />}
+                                onClick={() => setTemplateModalVisible(true)}
+                            >
+                                Template
+                            </Button>
+                            <Button
+                                icon={<UploadOutlined />}
+                                loading={importMutation.isPending}
+                                onClick={() => setImportModalVisible(true)}
+                            >
+                                Import
+                            </Button>
+                        </>
+                    )}
+                    <Button
+                        type="primary"
+                        icon={<UserAddOutlined />}
+                        onClick={handleAdd}
+                        className="user-list__add-button"
+                        size="large"
+                    >
+                        Add User
+                    </Button>
+                </Space>
             </div>
 
             <Card style={{ marginBottom: 16 }}>
@@ -369,6 +437,72 @@ const UserListPage: React.FC = () => {
                         <Input.Password />
                     </Form.Item>
                 </Form>
+            </Modal>
+
+            <Modal
+                title="Import Users"
+                open={importModalVisible}
+                onCancel={() => {
+                    setImportModalVisible(false);
+                    setImportFile(null);
+                }}
+                onOk={() => {
+                    if (!importFile) {
+                        message.error('Please select a file to upload.');
+                        return;
+                    }
+                    importMutation.mutate(importFile);
+                }}
+                okText="Upload"
+                confirmLoading={importMutation.isPending}
+                okButtonProps={{ disabled: !importFile }}
+            >
+                <Space direction="vertical" style={{ width: '100%' }} size="large">
+                    <Upload.Dragger
+                        accept=".csv,.xlsx,.xls"
+                        multiple={false}
+                        beforeUpload={(file) => {
+                            setImportFile(file);
+                            return false;
+                        }}
+                        fileList={importFile ? [{
+                            uid: importFile.name,
+                            name: importFile.name,
+                            status: 'done',
+                        }] : []}
+                        onRemove={() => {
+                            setImportFile(null);
+                            return true;
+                        }}
+                    >
+                        <p className="ant-upload-drag-icon">
+                            <UploadOutlined />
+                        </p>
+                        <p className="ant-upload-text">Drag and drop your file here</p>
+                        <p className="ant-upload-hint">Or click to browse. Accepted formats: CSV, XLSX.</p>
+                    </Upload.Dragger>
+                </Space>
+            </Modal>
+
+            <Modal
+                title="Download Template"
+                open={templateModalVisible}
+                onCancel={() => setTemplateModalVisible(false)}
+                onOk={handleDownloadTemplate}
+                okText="Download"
+            >
+                <Space direction="vertical" style={{ width: '100%' }} size="large">
+                    <div>
+                        <div style={{ marginBottom: 8, fontWeight: 500 }}>Choose file format</div>
+                        <Radio.Group
+                            onChange={(e) => setTemplateFormat(e.target.value)}
+                            value={templateFormat}
+                        >
+                            <Radio value="csv">CSV</Radio>
+                            <Radio value="xlsx">XLSX</Radio>
+                        </Radio.Group>
+                    </div>
+                </Space>
             </Modal>
         </div>
     );

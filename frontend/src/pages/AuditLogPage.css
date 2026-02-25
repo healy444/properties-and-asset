@@ -8,6 +8,12 @@
 }
 
 .audit-log .audit-log__details-col {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.audit-log .audit-log__details-col .ant-table-column-title {
   white-space: nowrap;
 }
 
@@ -71,6 +77,8 @@ body[data-theme='dark'] .audit-log__title {
   }
 
   .audit-log .ant-table-cell {
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
 }

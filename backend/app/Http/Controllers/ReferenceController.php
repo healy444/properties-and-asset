@@ -5,15 +5,22 @@ namespace App\Http\Controllers;
 use App\Services\ReferenceService;
 use App\Http\Requests\ReferenceRequest;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Imports\ReferenceImport;
+use App\Exports\ReferenceImportTemplateExport;
+use App\Services\AuditLogService;
 use Exception;
 
 class ReferenceController extends Controller
 {
     protected $referenceService;
+    protected $auditLogService;
 
-    public function __construct(ReferenceService $referenceService)
+    public function __construct(ReferenceService $referenceService, AuditLogService $auditLogService)
     {
         $this->referenceService = $referenceService;
+        $this->auditLogService = $auditLogService;
     }
 
     /**
@@ -64,6 +71,52 @@ class ReferenceController extends Controller
         try {
             $record = $this->referenceService->toggleStatus($type, $id);
             return response()->json($record);
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
+     * Import reference data for a type.
+     */
+    public function import(string $type, Request $request)
+    {
+        try {
+            $this->referenceService->getModelClass($type);
+            $request->validate([
+                'file' => 'required|file|mimes:csv,xlsx,xls',
+            ]);
+
+            DB::transaction(function () use ($type, $request) {
+                Excel::import(new ReferenceImport($this->referenceService, $type), $request->file('file'));
+            });
+
+            $this->auditLogService->logImport('references', [
+                'reference_type' => $type,
+                'filename' => $request->file('file')?->getClientOriginalName(),
+            ]);
+
+            return response()->json(['message' => 'Reference data imported successfully']);
+        } catch (Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    /**
+     * Download reference import template for a type.
+     */
+    public function importTemplate(string $type, Request $request)
+    {
+        try {
+            $this->referenceService->getModelClass($type);
+            $format = $request->input('format', 'csv');
+            if (!in_array($format, ['csv', 'xlsx'], true)) {
+                return response()->json(['error' => 'Invalid format'], 422);
+            }
+
+            $filename = "{$type}_import_template_" . now()->format('Ymd_His') . ".{$format}";
+
+            return Excel::download(new ReferenceImportTemplateExport($type), $filename);
         } catch (Exception $e) {
             return response()->json(['error' => $e->getMessage()], 400);
         }

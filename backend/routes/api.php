@@ -22,6 +22,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::prefix('references')->group(function () {
         Route::get('/{type}', [ReferenceController::class, 'index']);
         Route::post('/{type}', [ReferenceController::class, 'store'])->middleware('role:super_admin,admin');
+        Route::post('/{type}/import', [ReferenceController::class, 'import'])->middleware('role:super_admin,admin');
+        Route::get('/{type}/import-template', [ReferenceController::class, 'importTemplate'])->middleware('role:super_admin,admin');
         Route::put('/{type}/{id}', [ReferenceController::class, 'update'])->middleware('role:super_admin,admin');
         Route::post('/{type}/{id}/toggle-status', [ReferenceController::class, 'toggleStatus'])->middleware('role:super_admin,admin');
     });
@@ -47,6 +49,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     // Admin Only
     Route::middleware(['role:super_admin,admin'])->group(function () {
+        Route::get('/users/import-template', [UserController::class, 'importTemplate']);
+        Route::post('/users/import', [UserController::class, 'import']);
         Route::post('/users/{user}/reset-password', [UserController::class, 'resetPassword']);
         Route::post('/users/{user}/toggle-status', [UserController::class, 'toggleStatus']);
         Route::apiResource('users', UserController::class);
@@ -57,6 +61,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::middleware(['role:super_admin'])->group(function () {
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
+        Route::get('/audit-logs/export', [AuditLogController::class, 'export']);
         Route::post('/assets/{asset}/restore', [AssetController::class, 'restore'])->withTrashed();
     });
 });
