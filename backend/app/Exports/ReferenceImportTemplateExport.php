@@ -23,7 +23,8 @@ class ReferenceImportTemplateExport implements FromCollection, WithHeadings
     public function headings(): array
     {
         return match ($this->type) {
-            'branches' => ['NAME', 'CODE', 'PARENT'],
+            'divisions' => ['NAME', 'CODE'],
+            'branches' => ['NAME', 'CODE', 'DIVISION', 'PARENT'],
             'categories' => ['NAME', 'CODE'],
             'asset-types' => ['NAME', 'CATEGORY'],
             'brands' => ['NAME'],

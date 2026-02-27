@@ -6,6 +6,7 @@ use App\Models\AssetType;
 use App\Models\Branch;
 use App\Models\Category;
 use App\Models\Supplier;
+use App\Models\Division;
 use App\Services\ReferenceService;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -65,12 +66,21 @@ class ReferenceImport implements ToCollection, WithHeadingRow
 
         $parentBranchByName = null;
         $parentBranchByCode = null;
+        $divisionByName = null;
+        $divisionByCode = null;
         $categoryByName = null;
         $categoryByCode = null;
+
+        if ($this->type === 'divisions') {
+            $divisionByName = Division::all()->mapWithKeys(fn($division) => [$normalizeVal($division->name) => $division->id]);
+            $divisionByCode = Division::all()->mapWithKeys(fn($division) => [$normalizeVal($division->code) => $division->id]);
+        }
 
         if ($this->type === 'branches') {
             $parentBranchByName = Branch::all()->mapWithKeys(fn($branch) => [$normalizeVal($branch->name) => $branch->id]);
             $parentBranchByCode = Branch::all()->mapWithKeys(fn($branch) => [$normalizeVal($branch->code) => $branch->id]);
+            $divisionByName = Division::all()->mapWithKeys(fn($division) => [$normalizeVal($division->name) => $division->id]);
+            $divisionByCode = Division::all()->mapWithKeys(fn($division) => [$normalizeVal($division->code) => $division->id]);
         }
 
         if ($this->type === 'asset-types') {
@@ -126,7 +136,7 @@ class ReferenceImport implements ToCollection, WithHeadingRow
                 $rowErrors[] = "Row {$rowNumber}: Name is required.";
             }
 
-            if (in_array($this->type, ['branches', 'categories'], true) && $code === '') {
+            if (in_array($this->type, ['divisions', 'branches', 'categories'], true) && $code === '') {
                 $rowErrors[] = "Row {$rowNumber}: Code is required.";
             }
 
@@ -139,7 +149,7 @@ class ReferenceImport implements ToCollection, WithHeadingRow
                 }
             }
 
-            if ($code !== '' && in_array($this->type, ['branches', 'categories', 'asset-types'], true)) {
+            if ($code !== '' && in_array($this->type, ['divisions', 'branches', 'categories', 'asset-types'], true)) {
                 $codeKey = strtolower($code);
                 if (in_array($codeKey, $seenCodes, true) && $this->type !== 'asset-types') {
                     $rowErrors[] = "Row {$rowNumber}: Duplicate code in import file.";
@@ -148,9 +158,39 @@ class ReferenceImport implements ToCollection, WithHeadingRow
                 }
             }
 
+            if ($this->type === 'divisions') {
+                if ($code !== '' && Division::where('code', $code)->exists()) {
+                    $rowErrors[] = "Row {$rowNumber}: Code '{$code}' already exists.";
+                }
+
+                if (!empty($rowErrors)) {
+                    $errors = array_merge($errors, $rowErrors);
+                    continue;
+                }
+
+                $this->referenceService->create($this->type, [
+                    'name' => $name,
+                    'code' => $code,
+                ]);
+                continue;
+            }
+
             if ($this->type === 'branches') {
                 if ($code !== '' && Branch::where('code', $code)->exists()) {
                     $rowErrors[] = "Row {$rowNumber}: Code '{$code}' already exists.";
+                }
+
+                $divisionRaw = $getValue(['division', 'divisionname', 'division_name', 'divisioncode', 'division_code']);
+                $divisionRaw = $divisionRaw ? trim((string) $divisionRaw) : '';
+                $divisionId = null;
+                if ($divisionRaw === '') {
+                    $rowErrors[] = "Row {$rowNumber}: Division is required.";
+                } else {
+                    $divisionKey = $normalizeVal($divisionRaw);
+                    $divisionId = $divisionByName?->get($divisionKey) ?? $divisionByCode?->get($divisionKey);
+                    if (!$divisionId) {
+                        $rowErrors[] = "Row {$rowNumber}: Division '{$divisionRaw}' not found.";
+                    }
                 }
 
                 $parentRaw = $getValue(['parent', 'parentname', 'parent_name', 'parentcode', 'parent_code']);
@@ -172,6 +212,7 @@ class ReferenceImport implements ToCollection, WithHeadingRow
                 $this->referenceService->create($this->type, [
                     'name' => $name,
                     'code' => $code,
+                    'division_id' => $divisionId,
                     'parent_id' => $parentId,
                 ]);
                 continue;

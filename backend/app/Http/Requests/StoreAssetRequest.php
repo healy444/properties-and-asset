@@ -22,6 +22,7 @@ class StoreAssetRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'division_id' => 'required|exists:divisions,id',
             'branch_id' => 'required|exists:branches,id',
             'category_id' => 'required|exists:categories,id',
             'asset_type_id' => 'required|exists:asset_types,id',
@@ -32,7 +33,7 @@ class StoreAssetRequest extends FormRequest
             'date_of_purchase' => 'nullable|date',
             'acquisition_cost' => 'required|numeric|min:0',
             'useful_life_months' => 'nullable|integer|min:1',
-            'condition' => 'required|string',
+            'condition' => 'required|in:good,fair,poor,obsolete',
             'asset_status' => 'nullable|in:active,inactive',
             'remarks' => 'nullable|string',
             'assigned_to' => 'nullable|string',

@@ -9,6 +9,7 @@ use App\Models\AssetType;
 use App\Models\User;
 use App\Models\Brand;
 use App\Models\Supplier;
+use App\Models\Division;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class AssetFactory extends Factory
@@ -19,6 +20,7 @@ class AssetFactory extends Factory
     {
         return [
             'asset_code' => $this->faker->unique()->bothify('??-??-??-####'),
+            'division_id' => Division::factory(),
             'branch_id' => Branch::factory(),
             'category_id' => Category::factory(),
             'asset_type_id' => AssetType::factory(),
@@ -33,5 +35,14 @@ class AssetFactory extends Factory
             'is_draft' => false,
             'created_by' => User::factory(),
         ];
+    }
+
+    public function configure()
+    {
+        return $this->afterCreating(function (Asset $asset) {
+            if ($asset->branch && $asset->branch->division_id) {
+                $asset->update(['division_id' => $asset->branch->division_id]);
+            }
+        });
     }
 }

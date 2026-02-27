@@ -113,6 +113,7 @@ class AssetApiTest extends TestCase
         Sanctum::actingAs($this->manager);
 
         $data = [
+            'division_id' => $this->branch->division_id,
             'branch_id' => $this->branch->id,
             'category_id' => $this->category->id,
             'asset_type_id' => $this->assetType->id,
@@ -122,7 +123,7 @@ class AssetApiTest extends TestCase
             'acquisition_cost' => 100000,
             'useful_life_months' => 24,
             'date_of_purchase' => '2025-01-01',
-            'condition' => 'excellent',
+            'condition' => 'good',
             'is_draft' => true,
         ];
 
@@ -138,6 +139,7 @@ class AssetApiTest extends TestCase
         Sanctum::actingAs($this->manager);
 
         $data = [
+            'division_id' => $this->branch->division_id,
             'branch_id' => $this->branch->id,
             'category_id' => $this->category->id,
             'asset_type_id' => $this->assetType->id,

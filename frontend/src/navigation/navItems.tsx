@@ -1,12 +1,9 @@
 import React from 'react';
 import {
-  ApiOutlined,
-  BankOutlined,
   DashboardOutlined,
   DatabaseOutlined,
   HistoryOutlined,
   SettingOutlined,
-  ShopOutlined,
   TeamOutlined,
   UserOutlined,
 } from '@ant-design/icons';
@@ -47,43 +44,12 @@ const buildNavConfig = (user: User | null): NavItemConfig[] => {
       mobileIcon: <DashboardOutlined />,
     },
     {
-      key: 'credit',
-      icon: <BankOutlined />,
-      label: 'Credit',
-      mobileIcon: <BankOutlined />,
-      children: [
-        {
-          key: routePaths.assets,
-          icon: <DatabaseOutlined />,
-          label: 'Asset Management',
-          mobileLabel: 'Asset',
-          mobileIcon: <DatabaseOutlined />,
-          matchPaths: [routePaths.assets, routePaths.assetsNew, routePaths.assetsEdit],
-        },
-        {
-          key: routePaths.creditProperties,
-          icon: <BankOutlined />,
-          label: 'Properties',
-          hidden: isBranchCustodian,
-          mobileIcon: <BankOutlined />,
-        },
-      ],
-    },
-    {
-      key: routePaths.resort,
-      icon: <ShopOutlined />,
-      label: 'Resort',
-      hidden: isBranchCustodian,
-      mobileHidden: true,
-      mobileIcon: <ShopOutlined />,
-    },
-    {
-      key: routePaths.cable,
-      icon: <ApiOutlined />,
-      label: 'Cable',
-      hidden: isBranchCustodian,
-      mobileHidden: true,
-      mobileIcon: <ApiOutlined />,
+      key: routePaths.assets,
+      icon: <DatabaseOutlined />,
+      label: 'Asset Management',
+      mobileLabel: 'Asset',
+      mobileIcon: <DatabaseOutlined />,
+      matchPaths: [routePaths.assets, routePaths.assetsNew, routePaths.assetsEdit],
     },
     {
       key: routePaths.auditLogs,

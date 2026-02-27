@@ -85,13 +85,14 @@ const AssetDetailsDrawer: React.FC<AssetDetailsDrawerProps> = ({ id, visible, on
                         <Descriptions.Item label="Code" span={2}>
                             {asset.is_draft ? <Tag color="orange">DRAFT</Tag> : <Text strong>{asset.asset_code}</Text>}
                         </Descriptions.Item>
+                        <Descriptions.Item label="Division">{asset.division?.name || asset.branch?.division?.name || '-'}</Descriptions.Item>
                         <Descriptions.Item label="Branch">{asset.branch?.name}</Descriptions.Item>
                         <Descriptions.Item label="Category">{asset.category?.name}</Descriptions.Item>
                         <Descriptions.Item label="Type">{(asset as any).assetType?.name || (asset as any).asset_type?.name || '-'}</Descriptions.Item>
                         <Descriptions.Item label="Model">{asset.model_number}</Descriptions.Item>
                         <Descriptions.Item label="Serial">{asset.serial_number || '-'}</Descriptions.Item>
                         <Descriptions.Item label="Condition">
-                            <Tag color={asset.condition === 'poor' ? 'error' : 'processing'}>
+                            <Tag color={asset.condition === 'poor' || asset.condition === 'obsolete' ? 'error' : 'processing'}>
                                 {asset.condition.toUpperCase()}
                             </Tag>
                         </Descriptions.Item>
@@ -103,6 +104,16 @@ const AssetDetailsDrawer: React.FC<AssetDetailsDrawerProps> = ({ id, visible, on
                         </Descriptions.Item>
                         <Descriptions.Item label="Cost">
                             ₱{Number(asset.acquisition_cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Accumulated Dep.">
+                            {asset.accumulated_depreciation === null || asset.accumulated_depreciation === undefined
+                                ? 'Missing details; cannot calculate'
+                                : `₱${Number(asset.accumulated_depreciation).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Book Value">
+                            {asset.book_value === null || asset.book_value === undefined
+                                ? 'Missing details; cannot calculate'
+                                : `₱${Number(asset.book_value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                         </Descriptions.Item>
                         <Descriptions.Item label="Useful Life">{asset.useful_life_months} Months</Descriptions.Item>
                         <Descriptions.Item label="Monthly Dep.">

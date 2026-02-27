@@ -6,10 +6,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Builder;
+use Carbon\Carbon;
 
 /**
  * @property int $id
  * @property string|null $asset_code
+ * @property int|null $division_id
  * @property int $branch_id
  * @property int $category_id
  * @property int $asset_type_id
@@ -31,6 +33,7 @@ class Asset extends Model
      */
     protected $fillable = [
         'asset_code',
+        'division_id',
         'branch_id',
         'category_id',
         'asset_type_id',
@@ -56,6 +59,11 @@ class Asset extends Model
         'delete_approved_by',
         'delete_approved_at',
         'pre_delete_asset_status',
+    ];
+
+    protected $appends = [
+        'accumulated_depreciation',
+        'book_value',
     ];
 
     /**
@@ -97,6 +105,11 @@ class Asset extends Model
     public function branch()
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function division()
+    {
+        return $this->belongsTo(Division::class);
     }
 
     public function category()
@@ -151,6 +164,48 @@ class Asset extends Model
     public function scopePendingDeletion($query)
     {
         return $query->where('delete_request_status', 'pending');
+    }
+
+    /**
+     * Calculated fields
+     */
+
+    public function getAccumulatedDepreciationAttribute(): ?float
+    {
+        if (!$this->date_of_purchase || $this->monthly_depreciation === null || $this->useful_life_months === null) {
+            return null;
+        }
+
+        $purchaseDate = $this->date_of_purchase instanceof Carbon
+            ? $this->date_of_purchase
+            : Carbon::parse($this->date_of_purchase);
+
+        $asOf = now();
+        // Full months only: subtract one if current day hasn't reached purchase day.
+        $monthsElapsed = ($asOf->year - $purchaseDate->year) * 12 + ($asOf->month - $purchaseDate->month);
+        if ($asOf->day < $purchaseDate->day) {
+            $monthsElapsed -= 1;
+        }
+        $monthsElapsed = max($monthsElapsed, 0);
+
+        $cappedMonths = min($monthsElapsed, (int) $this->useful_life_months);
+
+        return round($cappedMonths * (float) $this->monthly_depreciation, 2);
+    }
+
+    public function getBookValueAttribute(): ?float
+    {
+        if ($this->acquisition_cost === null) {
+            return null;
+        }
+
+        $accumulated = $this->accumulated_depreciation;
+        if ($accumulated === null) {
+            return null;
+        }
+
+        $value = (float) $this->acquisition_cost - (float) $accumulated;
+        return round(max($value, 0), 2);
     }
 
     /**

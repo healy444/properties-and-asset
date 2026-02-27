@@ -32,7 +32,7 @@ return new class extends Migration {
             $table->decimal('monthly_depreciation', 15, 2);
 
             // Status & Attributes
-            $table->enum('condition', ['excellent', 'very_good', 'good', 'fair', 'poor']);
+            $table->enum('condition', ['good', 'fair', 'poor', 'obsolete']);
             $table->text('remarks')->nullable();
             $table->string('assigned_to')->nullable();
             $table->boolean('is_draft')->default(true);

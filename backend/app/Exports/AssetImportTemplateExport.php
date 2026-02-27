@@ -16,6 +16,7 @@ class AssetImportTemplateExport implements FromCollection, WithHeadings
     public function headings(): array
     {
         return [
+            'DIVISION',
             'BRANCH',
             'CATEGORY',
             'ASSET TYPE',

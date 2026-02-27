@@ -6,6 +6,7 @@ use App\Models\AssetType;
 use App\Models\Branch;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\Division;
 use App\Services\AssetService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -36,7 +37,10 @@ class AssetImport implements ToCollection, WithHeadingRow
             return preg_replace('/[^a-z0-9]/', '', strtolower(trim((string) $val)));
         };
 
-        $branchMap = Branch::all()->mapWithKeys(fn($branch) => [$normalizeVal($branch->name) => $branch->id]);
+        $divisionMap = Division::all()->mapWithKeys(fn($division) => [$normalizeVal($division->name) => $division->id]);
+        $branches = Branch::all();
+        $branchMap = $branches->mapWithKeys(fn($branch) => [$normalizeVal($branch->name) => $branch->id]);
+        $branchDivisionMap = $branches->mapWithKeys(fn($branch) => [$branch->id => $branch->division_id]);
         $categoryMap = Category::all()->mapWithKeys(fn($category) => [$normalizeVal($category->name) => $category->id]);
         $typeMap = AssetType::all()->mapWithKeys(fn($type) => [$normalizeVal($type->name) => $type->id]);
         $brandMap = Brand::all()->mapWithKeys(fn($brand) => [$normalizeVal($brand->name) => $brand->id]);
@@ -78,6 +82,7 @@ class AssetImport implements ToCollection, WithHeadingRow
                 return null;
             };
 
+            $divisionName = $normalizeVal($getValue(['division', 'divisionname', 'division_name']) ?? '');
             $branchName = $normalizeVal($getValue(['branch', 'branchname', 'location', 'office']) ?? '');
             $categoryName = $normalizeVal($getValue(['category', 'categoryname', 'majorcategory']) ?? '');
             $typeName = $normalizeVal($getValue(['assettype', 'assettypename', 'type', 'asset_type', 'description']) ?? '');
@@ -96,6 +101,15 @@ class AssetImport implements ToCollection, WithHeadingRow
             $dateValue = $getValue(['dateofpurchase', 'date_of_purchase', 'purchase_date']);
             $status = $normalizeVal($getValue(['status', 'assetstatus', 'asset_status']) ?? '');
 
+            $divisionId = null;
+            if ($divisionName !== '') {
+                if (!$divisionMap->has($divisionName)) {
+                    $rowErrors[] = "Row {$rowNumber}: Division '{$divisionName}' not found.";
+                } else {
+                    $divisionId = $divisionMap->get($divisionName);
+                }
+            }
+
             $branchId = $this->branchId;
             if (!$branchId) {
                 if (!$branchName) {
@@ -106,6 +120,15 @@ class AssetImport implements ToCollection, WithHeadingRow
                     $rowErrors[] = "Row {$rowNumber}: Branch '{$branchName}' not found.";
                 } else {
                     $branchId = $branchMap->get($branchName);
+                }
+            }
+
+            if ($branchId) {
+                $branchDivisionId = $branchDivisionMap->get($branchId);
+                if (!$divisionId) {
+                    $divisionId = $branchDivisionId;
+                } elseif ($branchDivisionId && (int) $branchDivisionId !== (int) $divisionId) {
+                    $rowErrors[] = "Row {$rowNumber}: Branch and division do not match.";
                 }
             }
 
@@ -139,8 +162,8 @@ class AssetImport implements ToCollection, WithHeadingRow
                 }
             }
 
-            if ($condition === '' || !in_array($condition, ['good', 'fair', 'poor'], true)) {
-                $rowErrors[] = "Row {$rowNumber}: Condition must be Good, Fair, or Poor.";
+            if ($condition === '' || !in_array($condition, ['good', 'fair', 'poor', 'obsolete'], true)) {
+                $rowErrors[] = "Row {$rowNumber}: Condition must be Good, Fair, Poor, or Obsolete.";
             }
 
             if ($acquisitionCost === null || trim((string) $acquisitionCost) === '') {
@@ -187,7 +210,10 @@ class AssetImport implements ToCollection, WithHeadingRow
                 $assetStatus = 'active';
             }
 
+            $condition = (string) $condition;
+
             $this->assetService->createAsset([
+                'division_id' => $divisionId,
                 'branch_id' => $branchId,
                 'category_id' => $categoryMap->get($categoryName),
                 'asset_type_id' => $typeMap->get($typeName),

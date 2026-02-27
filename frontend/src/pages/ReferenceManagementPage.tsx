@@ -99,6 +99,15 @@ const ReferenceManagementPage: React.FC = () => {
         enabled: activeTab === 'asset-types'
     });
 
+    const { data: divisions } = useQuery({
+        queryKey: ['references', 'divisions', 'dropdown'],
+        queryFn: async () => {
+            const response = await axios.get('/references/divisions', { params: { active: 1 } });
+            return response.data;
+        },
+        enabled: activeTab === 'branches' || activeTab === 'divisions'
+    });
+
     const { data: branches } = useQuery({
         queryKey: ['references', 'branches', 'dropdown'],
         queryFn: async () => {
@@ -235,11 +244,28 @@ const ReferenceManagementPage: React.FC = () => {
     ];
 
     const configs: Record<string, ReferenceConfig> = {
+        divisions: {
+            key: 'divisions',
+            label: 'Divisions',
+            columns: baseColumns,
+            fields: (
+                <>
+                    <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
+                    <Form.Item name="code" label="Code" rules={[{ required: true }]}><Input /></Form.Item>
+                </>
+            )
+        },
         branches: {
             key: 'branches',
             label: 'Branches',
             columns: [
                 ...baseColumns.slice(0, 2),
+                {
+                    title: 'Division',
+                    dataIndex: ['division', 'name'],
+                    key: 'division',
+                    render: (text: string) => text || '-',
+                },
                 {
                     title: 'Parent',
                     dataIndex: ['parent', 'name'],
@@ -252,6 +278,11 @@ const ReferenceManagementPage: React.FC = () => {
                 <>
                     <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
                     <Form.Item name="code" label="Code" rules={[{ required: true }]}><Input /></Form.Item>
+                    <Form.Item name="division_id" label="Division" rules={[{ required: true }]}>
+                        <Select>
+                            {divisions?.map((d: any) => <Select.Option key={d.id} value={d.id}>{d.name}</Select.Option>)}
+                        </Select>
+                    </Form.Item>
                     <Form.Item name="parent_id" label="Parent Branch"><Select allowClear>
                         {branches?.map((b: any) => <Select.Option key={b.id} value={b.id}>{b.name}</Select.Option>)}
                     </Select></Form.Item>

@@ -19,7 +19,8 @@ class AssetExport implements FromQuery, WithHeadings, WithMapping
     public function query()
     {
         return Asset::query()
-            ->with(['branch', 'category', 'assetType', 'brand', 'supplier'])
+            ->with(['division', 'branch', 'category', 'assetType', 'brand', 'supplier'])
+            ->when($this->filters['division_id'] ?? null, fn($q, $id) => $q->where('division_id', $id))
             ->when($this->filters['branch_id'] ?? null, fn($q, $id) => $q->where('branch_id', $id))
             ->when($this->filters['category_id'] ?? null, fn($q, $id) => $q->where('category_id', $id))
             ->when($this->filters['status'] ?? null, function ($q, $status) {
@@ -49,6 +50,7 @@ class AssetExport implements FromQuery, WithHeadings, WithMapping
     {
         return [
             'Asset Code',
+            'Division',
             'Branch',
             'Category',
             'Type',
@@ -56,6 +58,8 @@ class AssetExport implements FromQuery, WithHeadings, WithMapping
             'Model',
             'Serial Number',
             'Acquisition Cost',
+            'Accumulated Depreciation',
+            'Book Value',
             'Useful Life (Months)',
             'Monthly Depreciation',
             'Condition',
@@ -68,6 +72,7 @@ class AssetExport implements FromQuery, WithHeadings, WithMapping
     {
         return [
             $asset->asset_code,
+            $asset->division->name ?? '',
             $asset->branch->name ?? '',
             $asset->category->name ?? '',
             $asset->assetType->name ?? '',
@@ -75,6 +80,8 @@ class AssetExport implements FromQuery, WithHeadings, WithMapping
             $asset->model_number,
             $asset->serial_number,
             $asset->acquisition_cost,
+            $asset->accumulated_depreciation,
+            $asset->book_value,
             $asset->useful_life_months,
             $asset->monthly_depreciation,
             $asset->condition,

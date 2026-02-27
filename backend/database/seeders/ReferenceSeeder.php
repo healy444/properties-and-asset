@@ -15,7 +15,8 @@ class ReferenceSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->seedBranches();
+        $divisionIds = $this->seedDivisions();
+        $this->seedBranches($divisionIds);
         $this->seedCategories();
         $this->seedAssetTypes();
         $this->seedBrands();
@@ -23,13 +24,42 @@ class ReferenceSeeder extends Seeder
     }
 
     /**
+     * Seed divisions.
+     */
+    private function seedDivisions(): array
+    {
+        $divisions = [
+            ['code' => 'HO', 'name' => 'Head Office'],
+            ['code' => 'NR', 'name' => 'North Region'],
+            ['code' => 'SR', 'name' => 'South Region'],
+            ['code' => 'CR', 'name' => 'Central Region'],
+        ];
+
+        $ids = [];
+        foreach ($divisions as $division) {
+            $id = \Illuminate\Support\Facades\DB::table('divisions')->insertGetId([
+                'code' => $division['code'],
+                'name' => $division['name'],
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $ids[$division['code']] = $id;
+        }
+
+        $this->command->info('✓ Divisions seeded (4 total)');
+
+        return $ids;
+    }
+
+    /**
      * Seed branches with parent-child hierarchy.
      * Codes are FIXED and must not be changed.
      */
-    private function seedBranches(): void
+    private function seedBranches(array $divisionIds): void
     {
         // Main Office (Root)
         $mainOffice = \Illuminate\Support\Facades\DB::table('branches')->insertGetId([
+            'division_id' => $divisionIds['HO'] ?? null,
             'parent_id' => null,
             'code' => 'HO',
             'name' => 'Head Office',
@@ -39,6 +69,7 @@ class ReferenceSeeder extends Seeder
 
         // Regional Branches (Children of Main Office)
         $northRegion = \Illuminate\Support\Facades\DB::table('branches')->insertGetId([
+            'division_id' => $divisionIds['NR'] ?? null,
             'parent_id' => $mainOffice,
             'code' => 'NR',
             'name' => 'North Region',
@@ -47,6 +78,7 @@ class ReferenceSeeder extends Seeder
         ]);
 
         $southRegion = \Illuminate\Support\Facades\DB::table('branches')->insertGetId([
+            'division_id' => $divisionIds['SR'] ?? null,
             'parent_id' => $mainOffice,
             'code' => 'SR',
             'name' => 'South Region',
@@ -55,6 +87,7 @@ class ReferenceSeeder extends Seeder
         ]);
 
         $centralRegion = \Illuminate\Support\Facades\DB::table('branches')->insertGetId([
+            'division_id' => $divisionIds['CR'] ?? null,
             'parent_id' => $mainOffice,
             'code' => 'CR',
             'name' => 'Central Region',
@@ -65,6 +98,7 @@ class ReferenceSeeder extends Seeder
         // Sub-branches (Children of Regions)
         \Illuminate\Support\Facades\DB::table('branches')->insert([
             [
+                'division_id' => $divisionIds['NR'] ?? null,
                 'parent_id' => $northRegion,
                 'code' => 'NR-B1',
                 'name' => 'North Branch 1',
@@ -72,6 +106,7 @@ class ReferenceSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
+                'division_id' => $divisionIds['NR'] ?? null,
                 'parent_id' => $northRegion,
                 'code' => 'NR-B2',
                 'name' => 'North Branch 2',
@@ -79,6 +114,7 @@ class ReferenceSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
+                'division_id' => $divisionIds['SR'] ?? null,
                 'parent_id' => $southRegion,
                 'code' => 'SR-B1',
                 'name' => 'South Branch 1',
@@ -86,6 +122,7 @@ class ReferenceSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
+                'division_id' => $divisionIds['CR'] ?? null,
                 'parent_id' => $centralRegion,
                 'code' => 'CR-B1',
                 'name' => 'Central Branch 1',

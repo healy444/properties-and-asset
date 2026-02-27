@@ -22,6 +22,7 @@ class UpdateAssetRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'division_id' => 'sometimes|exists:divisions,id',
             'branch_id' => 'sometimes|exists:branches,id',
             'category_id' => 'sometimes|exists:categories,id',
             'asset_type_id' => 'sometimes|exists:asset_types,id',
@@ -32,7 +33,7 @@ class UpdateAssetRequest extends FormRequest
             'date_of_purchase' => 'sometimes|nullable|date',
             'acquisition_cost' => 'sometimes|numeric|min:0',
             'useful_life_months' => 'sometimes|nullable|integer|min:1',
-            'condition' => 'sometimes|string',
+            'condition' => 'sometimes|in:good,fair,poor,obsolete',
             'asset_status' => 'sometimes|in:active,inactive',
             'remarks' => 'nullable|string',
             'assigned_to' => 'nullable|string',

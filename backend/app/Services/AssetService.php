@@ -6,6 +6,7 @@ use App\Models\Asset;
 use App\Models\Branch;
 use App\Models\Category;
 use App\Models\AssetType;
+use App\Models\Division;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
@@ -32,6 +33,18 @@ class AssetService
     {
         return DB::transaction(function () use ($data) {
             $branch = Branch::findOrFail($data['branch_id']);
+            $divisionId = $data['division_id'] ?? null;
+            if ($divisionId) {
+                $divisionExists = Division::where('id', $divisionId)->exists();
+                if (!$divisionExists) {
+                    throw new \Exception('Division not found.');
+                }
+                if ($branch->division_id && (int) $branch->division_id !== (int) $divisionId) {
+                    throw new \Exception('Branch does not belong to the selected division.');
+                }
+            } else {
+                $data['division_id'] = $branch->division_id;
+            }
             $category = Category::findOrFail($data['category_id']);
             $assetType = AssetType::findOrFail($data['asset_type_id']);
 
@@ -47,6 +60,9 @@ class AssetService
 
             $isDraft = (bool) ($data['is_draft'] ?? false);
             $data['asset_status'] = $data['asset_status'] ?? 'active';
+            if (($data['condition'] ?? null) === 'obsolete') {
+                $data['asset_status'] = 'inactive';
+            }
 
             if (!$isDraft) {
                 $data['asset_code'] = $this->codeGenerator->generate($branch, $category, $assetType);
@@ -76,6 +92,8 @@ class AssetService
     {
         return DB::transaction(function () use ($asset, $data) {
             $oldValues = $asset->toArray();
+            $divisionId = $data['division_id'] ?? $asset->division_id;
+            $branchId = $data['branch_id'] ?? $asset->branch_id;
 
             if ($asset->isActive()) {
                 // Rule: If Active, only status (condition), remarks, assigned_to editable.
@@ -85,6 +103,7 @@ class AssetService
                     'condition',
                     'remarks',
                     'assigned_to',
+                    'division_id',
                     'branch_id',
                     'serial_number',
                     'model_number',
@@ -114,6 +133,23 @@ class AssetService
                         $assetType = AssetType::find($data['asset_type_id'] ?? $asset->asset_type_id);
                         $data['asset_code'] = $this->codeGenerator->generate($branch, $category, $assetType);
                     }
+                }
+            }
+
+            if (($data['condition'] ?? null) === 'obsolete') {
+                $data['asset_status'] = 'inactive';
+            }
+
+            if ($branchId) {
+                $branch = Branch::find($branchId);
+                if (!$branch) {
+                    throw new \Exception('Branch not found.');
+                }
+                if ($divisionId && $branch->division_id && (int) $branch->division_id !== (int) $divisionId) {
+                    throw new \Exception('Branch does not belong to the selected division.');
+                }
+                if (!$divisionId) {
+                    $data['division_id'] = $branch->division_id;
                 }
             }
 

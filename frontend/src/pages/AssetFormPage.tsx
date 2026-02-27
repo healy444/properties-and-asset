@@ -17,10 +17,13 @@ const AssetFormPage: React.FC = () => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const [form] = Form.useForm();
-    const { branches, categories, assetTypes, brands, suppliers } = useReferences();
+    const { divisions, branches, categories, assetTypes, brands, suppliers } = useReferences();
     const [isDraft, setIsDraft] = useState(true);
     const [submitIntent, setSubmitIntent] = useState<'draft' | 'review' | 'default'>('default');
     const selectedCategoryId = Form.useWatch('category_id', form);
+    const selectedDivisionId = Form.useWatch('division_id', form);
+    const selectedBranchId = Form.useWatch('branch_id', form);
+    const selectedCondition = Form.useWatch('condition', form);
     const isEdit = !!id;
     const { user: currentUser } = useAuth();
     const isSuperAdmin = currentUser?.role === 'super_admin';
@@ -46,11 +49,27 @@ const AssetFormPage: React.FC = () => {
         if (!isBranchCustodian || !branches.data?.length) {
             return;
         }
-        const branchId = branches.data.find(b => b.name === currentUser?.branch)?.id;
-        if (branchId && form.getFieldValue('branch_id') !== branchId) {
-            form.setFieldsValue({ branch_id: branchId });
+        const branch = branches.data.find(b => b.name === currentUser?.branch);
+        if (!branch) {
+            return;
+        }
+        if (form.getFieldValue('branch_id') !== branch.id) {
+            form.setFieldsValue({ branch_id: branch.id });
+        }
+        if (branch.division_id && form.getFieldValue('division_id') !== branch.division_id) {
+            form.setFieldsValue({ division_id: branch.division_id });
         }
     }, [isBranchCustodian, branches.data, currentUser?.branch, form]);
+
+    useEffect(() => {
+        if (!branches.data?.length || !selectedBranchId) {
+            return;
+        }
+        const branch = branches.data.find(b => b.id === selectedBranchId);
+        if (branch?.division_id && form.getFieldValue('division_id') !== branch.division_id) {
+            form.setFieldsValue({ division_id: branch.division_id });
+        }
+    }, [branches.data, selectedBranchId, form]);
 
     useEffect(() => {
         if (!isBranchCustodian || isEdit) {
@@ -137,6 +156,20 @@ const AssetFormPage: React.FC = () => {
         }
     }, [selectedCategoryId, assetTypes.data, form]);
 
+    useEffect(() => {
+        if (!branches.data?.length) {
+            return;
+        }
+        const branchId = form.getFieldValue('branch_id');
+        if (!branchId || !selectedDivisionId) {
+            return;
+        }
+        const branch = branches.data.find(b => b.id === branchId);
+        if (branch?.division_id && branch.division_id !== selectedDivisionId) {
+            form.setFieldsValue({ branch_id: undefined });
+        }
+    }, [branches.data, selectedDivisionId, form]);
+
     return (
         <Card loading={isLoading}>
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -156,11 +189,21 @@ const AssetFormPage: React.FC = () => {
                     initialValues={{ is_draft: true, asset_status: 'active' }}
                     disabled={mutation.isPending}
                 >
-                    <div className="asset-form__grid asset-form__grid--three">
+                    <div className="asset-form__grid asset-form__grid--four">
+                        <Form.Item name="division_id" label="Division" rules={[{ required: true }]}>
+                            <Select
+                                disabled={isBranchCustodian}
+                                options={divisions.data?.map(d => ({ label: d.name, value: d.id }))}
+                            />
+                        </Form.Item>
                         <Form.Item name="branch_id" label="Branch" rules={[{ required: true }]}>
                             <Select
                                 disabled={isBranchCustodian}
-                                options={branches.data?.map(b => ({ label: b.name, value: b.id }))}
+                                options={selectedDivisionId
+                                    ? branches.data
+                                        ?.filter(b => b.division_id === selectedDivisionId)
+                                        .map(b => ({ label: b.name, value: b.id }))
+                                    : []}
                             />
                         </Form.Item>
                         <Form.Item name="category_id" label="Category" rules={[{ required: true }]}>
@@ -231,17 +274,25 @@ const AssetFormPage: React.FC = () => {
                     <Divider orientation={'left' as any} orientationMargin="0">Current Status & Assignment</Divider>
                     <div className="asset-form__grid asset-form__grid--four">
                         <Form.Item name="condition" label="Condition" rules={[{ required: true }]}>
-                            <Select options={[
-                                { label: 'Good', value: 'good' },
-                                { label: 'Fair', value: 'fair' },
-                                { label: 'Poor', value: 'poor' },
-                            ]} />
+                            <Select
+                                options={[
+                                    { label: 'Good', value: 'good' },
+                                    { label: 'Fair', value: 'fair' },
+                                    { label: 'Poor', value: 'poor' },
+                                    { label: 'Obsolete', value: 'obsolete' },
+                                ]}
+                                onChange={(value) => {
+                                    if (value === 'obsolete') {
+                                        form.setFieldsValue({ asset_status: 'inactive' });
+                                    }
+                                }}
+                            />
                         </Form.Item>
                         <Form.Item name="asset_status" label="Asset Status">
                             <Select options={[
                                 { label: 'Active', value: 'active' },
                                 { label: 'Inactive', value: 'inactive' },
-                            ]} />
+                            ]} disabled={selectedCondition === 'obsolete'} />
                         </Form.Item>
                         <Form.Item name="assigned_to" label="Assigned To">
                             <Input placeholder="Employee Name" />

@@ -30,7 +30,7 @@ class ReferenceRequest extends FormRequest
             'is_active' => 'boolean',
         ];
 
-        if (in_array($type, ['branches', 'categories', 'asset-types'])) {
+        if (in_array($type, ['divisions', 'branches', 'categories', 'asset-types'])) {
             $table = str_replace('-', '_', $type);
             if ($type === 'asset-types') {
                 $categoryId = $this->input('category_id');
@@ -49,6 +49,7 @@ class ReferenceRequest extends FormRequest
 
         if ($type === 'branches') {
             $rules['parent_id'] = 'nullable|exists:branches,id';
+            $rules['division_id'] = 'required|exists:divisions,id';
         }
 
         if ($type === 'asset-types') {

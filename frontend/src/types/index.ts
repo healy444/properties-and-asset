@@ -14,13 +14,22 @@ export interface User {
     branch?: string;
 }
 
+export interface Division {
+    id: number;
+    code: string;
+    name: string;
+    is_active: boolean;
+}
+
 export interface Branch {
     id: number;
+    division_id?: number | null;
     parent_id?: number | null;
     code: string;
     name: string;
     is_active: boolean;
     parent?: Branch;
+    division?: Division;
 }
 
 export interface Category {
@@ -58,6 +67,7 @@ export interface Supplier {
 export interface Asset {
     id: number;
     asset_code?: string;
+    division_id?: number | null;
     branch_id: number;
     category_id: number;
     asset_type_id: number;
@@ -69,6 +79,8 @@ export interface Asset {
     acquisition_cost: number;
     useful_life_months?: number | null;
     monthly_depreciation: number;
+    accumulated_depreciation?: number | null;
+    book_value?: number | null;
     condition: string;
     asset_status?: 'active' | 'inactive';
     remarks?: string;
@@ -87,6 +99,7 @@ export interface Asset {
     deleted_at?: string | null;
 
     // Relations
+    division?: Division;
     branch?: Branch;
     category?: Category;
     assetType?: AssetType;

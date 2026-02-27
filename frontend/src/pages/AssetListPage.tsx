@@ -21,7 +21,7 @@ const AssetListPage: React.FC = () => {
     const [searchParams] = useSearchParams();
     const { user } = useAuth();
     const isMobile = useMediaQuery('(max-width: 768px)');
-    const { branches, categories } = useReferences();
+    const { divisions, branches, categories } = useReferences();
     const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null);
     const [drawerVisible, setDrawerVisible] = useState(false);
     const [exportModalVisible, setExportModalVisible] = useState(false);
@@ -38,6 +38,7 @@ const AssetListPage: React.FC = () => {
         page: 1,
         per_page: 10,
         search: '',
+        division_id: undefined as number | undefined,
         branch_id: undefined as number | undefined,
         category_id: undefined as number | undefined,
         status: (initialStatus as any) ?? 'active',
@@ -46,7 +47,8 @@ const AssetListPage: React.FC = () => {
 
     const isBranchCustodian = user?.role === 'branch_custodian';
     const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
-    const branchIdForUser = branches.data?.find(b => b.name === user?.branch)?.id;
+    const branchForUser = branches.data?.find(b => b.name === user?.branch);
+    const branchIdForUser = branchForUser?.id;
 
     useEffect(() => {
         if (!isBranchCustodian || !branchIdForUser) {
@@ -56,9 +58,9 @@ const AssetListPage: React.FC = () => {
             if (prev.branch_id === branchIdForUser) {
                 return prev;
             }
-            return { ...prev, branch_id: branchIdForUser, page: 1 };
+            return { ...prev, branch_id: branchIdForUser, division_id: branchForUser?.division_id ?? undefined, page: 1 };
         });
-    }, [isBranchCustodian, branchIdForUser]);
+    }, [isBranchCustodian, branchIdForUser, branchForUser?.division_id]);
 
     const { data, isLoading } = useQuery({
         queryKey: ['assets', params],
@@ -205,6 +207,7 @@ const AssetListPage: React.FC = () => {
                 const typeName = asset.assetType?.name || asset.asset_type?.name || '-';
                 const categoryName = asset.category?.name || asset.category_name || asset.category?.title || '-';
                 const branchName = asset.branch?.name || asset.branch_name || '-';
+                const divisionName = asset.division?.name || asset.branch?.division?.name || '-';
                 const condition = (asset.condition || '').toUpperCase() || '-';
                 const cost = Number(asset.acquisition_cost || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 const dep = Number(asset.monthly_depreciation || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -212,11 +215,12 @@ const AssetListPage: React.FC = () => {
   <div class="tag">
     <table class="info">
       <tr><th>Code</th><td colspan="3" class="code">${asset.asset_code || 'DRAFT'}</td></tr>
-      <tr><th>Branch</th><td>${branchName}</td><th>Category</th><td>${categoryName}</td></tr>
-      <tr><th>Type</th><td>${typeName}</td><th>Model</th><td>${asset.model_number || '-'}</td></tr>
-      <tr><th>Serial</th><td>${asset.serial_number || '-'}</td><th>Condition</th><td>${condition}</td></tr>
-      <tr><th>Purchase Date</th><td>${formatDate(asset.date_of_purchase)}</td><th>Cost</th><td>PHP ${cost}</td></tr>
-      <tr><th>Useful Life</th><td>${asset.useful_life_months || '-'} Months</td><th>Monthly Dep.</th><td>PHP ${dep}</td></tr>
+      <tr><th>Division</th><td>${divisionName}</td><th>Branch</th><td>${branchName}</td></tr>
+      <tr><th>Category</th><td>${categoryName}</td><th>Type</th><td>${typeName}</td></tr>
+      <tr><th>Model</th><td>${asset.model_number || '-'}</td><th>Serial</th><td>${asset.serial_number || '-'}</td></tr>
+      <tr><th>Condition</th><td>${condition}</td><th>Purchase Date</th><td>${formatDate(asset.date_of_purchase)}</td></tr>
+      <tr><th>Cost</th><td>PHP ${cost}</td><th>Monthly Dep.</th><td>PHP ${dep}</td></tr>
+      <tr><th>Useful Life</th><td colspan="3">${asset.useful_life_months || '-'} Months</td></tr>
     </table>
   </div>`;
             }).join('');
@@ -524,9 +528,9 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
             ),
         },
         {
-            title: 'Type',
-            key: 'asset_type',
-            render: (_: any, record: Asset) => (record.assetType?.name || (record as any).asset_type?.name || '-'),
+            title: 'Division',
+            key: 'division',
+            render: (_: any, record: Asset) => record.division?.name || record.branch?.division?.name || '-',
         },
         {
             title: 'Branch',
@@ -540,24 +544,29 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
             responsive: responsiveMd,
         },
         {
-            title: 'Cost',
-            dataIndex: 'acquisition_cost',
-            key: 'acquisition_cost',
+            title: 'Type',
+            key: 'asset_type',
+            render: (_: any, record: Asset) => (record.assetType?.name || (record as any).asset_type?.name || '-'),
+        },
+        {
+            title: 'Book Value',
+            key: 'book_value',
             responsive: responsiveMd,
-            render: (cost: number) => `₱${Number(cost).toLocaleString()}`,
+            render: (_: any, record: Asset) =>
+                record.book_value === null || record.book_value === undefined
+                    ? 'Missing details; cannot calculate'
+                    : `₱${Number(record.book_value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         },
         {
             title: 'Condition',
             dataIndex: 'condition',
             key: 'condition',
             responsive: responsiveMd,
-            render: (condition: string) => <Tag color={condition === 'poor' ? 'error' : 'processing'}>{condition.toUpperCase()}</Tag>,
-        },
-        {
-            title: 'Status',
-            key: 'status',
-            responsive: responsiveMd,
-            render: (_unused: any, record: Asset) => renderStatusBadge(record),
+            render: (condition: string) => (
+                <Tag color={condition === 'poor' || condition === 'obsolete' ? 'error' : 'processing'}>
+                    {condition.toUpperCase()}
+                </Tag>
+            ),
         },
         {
             title: 'Actions',
@@ -616,11 +625,22 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                         onChange={(e) => setParams({ ...params, search: e.target.value })}
                     />
                     <Select
+                        placeholder="Division"
+                        className="asset-list__filter asset-list__filter--small"
+                        allowClear={!isBranchCustodian}
+                        disabled={isBranchCustodian}
+                        options={divisions.data?.map(d => ({ label: d.name, value: d.id }))}
+                        value={params.division_id}
+                        onChange={(val) => setParams({ ...params, division_id: val, branch_id: undefined })}
+                    />
+                    <Select
                         placeholder="Branch"
                         className="asset-list__filter asset-list__filter--small"
                         allowClear={!isBranchCustodian}
                         disabled={isBranchCustodian}
-                        options={branches.data?.map(b => ({ label: b.name, value: b.id }))}
+                        options={branches.data
+                            ?.filter(b => !params.division_id || b.division_id === params.division_id)
+                            .map(b => ({ label: b.name, value: b.id }))}
                         value={params.branch_id}
                         onChange={(val) => setParams({ ...params, branch_id: val })}
                     />
@@ -681,6 +701,7 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                                 ...prev,
                                 page: 1,
                                 search: '',
+                                division_id: isBranchCustodian ? branchForUser?.division_id ?? undefined : undefined,
                                 branch_id: isBranchCustodian ? branchIdForUser : undefined,
                                 category_id: undefined,
                                 status: 'active' as any,
@@ -707,6 +728,8 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                                 <div className="asset-list__card-row">
                                     <div className="asset-list__card-meta">
                                         <span>{record.assetType?.name || (record as any).asset_type?.name || '-'}</span>
+                                        <span className="asset-list__card-dot">•</span>
+                                        <span>{record.division?.name || record.branch?.division?.name || '-'}</span>
                                         <span className="asset-list__card-dot">•</span>
                                         <span>{record.branch?.name || '-'}</span>
                                     </div>

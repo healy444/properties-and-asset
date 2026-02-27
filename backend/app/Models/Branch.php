@@ -11,6 +11,7 @@ class Branch extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'division_id',
         'parent_id',
         'code',
         'name',
@@ -24,6 +25,11 @@ class Branch extends Model
     public function parent()
     {
         return $this->belongsTo(Branch::class, 'parent_id');
+    }
+
+    public function division()
+    {
+        return $this->belongsTo(Division::class);
     }
 
     public function children()

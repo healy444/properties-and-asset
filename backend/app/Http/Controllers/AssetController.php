@@ -42,6 +42,7 @@ class AssetController extends Controller
         }
 
         $assetsQuery = Asset::with([
+            'division',
             'branch',
             'category',
             'assetType',
@@ -51,6 +52,7 @@ class AssetController extends Controller
             'deleteRequester',
             'deleteApprover',
         ])
+            ->when($request->division_id, fn($q) => $q->where('division_id', $request->division_id))
             ->when($request->branch_id, fn($q) => $q->where('branch_id', $request->branch_id))
             ->when($request->category_id, fn($q) => $q->where('category_id', $request->category_id))
             ->when($request->status, function ($q) use ($request, $user, $isAdmin) {
@@ -147,6 +149,7 @@ class AssetController extends Controller
         $model = Asset::withTrashed()->findOrFail($asset->id);
         $this->authorize('view', $model);
         $model->load([
+            'division',
             'branch',
             'category',
             'assetType',

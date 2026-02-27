@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\AssetType;
 use App\Models\Brand;
 use App\Models\Supplier;
+use App\Models\Division;
 use App\Services\AuditLogService;
 use Exception;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,7 @@ class ReferenceService
     public function getModelClass(string $type): string
     {
         return match ($type) {
+            'divisions' => Division::class,
             'branches' => Branch::class,
             'categories' => Category::class,
             'asset-types' => AssetType::class,
@@ -59,7 +61,7 @@ class ReferenceService
             if ($type === 'asset-types') {
                 $query->with('category');
             } elseif ($type === 'branches') {
-                $query->with('parent');
+                $query->with(['parent', 'division']);
             }
 
             return $query->get();
@@ -154,7 +156,7 @@ class ReferenceService
      */
     protected function normalizeReferenceData(string $type, array $data): array
     {
-        if (isset($data['name']) && in_array($type, ['branches', 'categories', 'asset-types'])) {
+        if (isset($data['name']) && in_array($type, ['divisions', 'branches', 'categories', 'asset-types'])) {
             $name = trim(preg_replace('/\s+/', ' ', $data['name']));
             $data['name'] = ucwords(strtolower($name));
         }

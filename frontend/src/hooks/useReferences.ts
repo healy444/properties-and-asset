@@ -1,11 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import api from '../api/axios';
-import type { Branch, Category, AssetType } from '../types';
+import type { Branch, Category, AssetType, Division } from '../types';
 
 export const useReferences = () => {
     const branches = useQuery<Branch[]>({
         queryKey: ['branches'],
         queryFn: () => api.get('/references/branches').then(res => res.data),
+    });
+
+    const divisions = useQuery<Division[]>({
+        queryKey: ['divisions'],
+        queryFn: () => api.get('/references/divisions').then(res => res.data),
     });
 
     const categories = useQuery<Category[]>({
@@ -28,5 +33,5 @@ export const useReferences = () => {
         queryFn: () => api.get('/references/suppliers').then(res => res.data),
     });
 
-    return { branches, categories, assetTypes, brands, suppliers };
+    return { divisions, branches, categories, assetTypes, brands, suppliers };
 };
