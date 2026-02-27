@@ -19,7 +19,6 @@ return new class extends Migration {
             $table->json('old_values')->nullable();
             $table->json('new_values')->nullable();
             $table->json('metadata')->nullable(); // filters, extra details
-            $table->string('ip_address')->nullable();
             $table->string('user_agent')->nullable();
             $table->timestamps(); // created_at is the event time
 

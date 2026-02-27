@@ -26,8 +26,7 @@ class AuditLogApiTest extends TestCase
     {
         AuditLog::create([
             'user_id' => $this->manager->id,
-            'action' => 'TEST_ACTION',
-            'ip_address' => '127.0.0.1'
+            'action' => 'TEST_ACTION'
         ]);
 
         Sanctum::actingAs($this->admin);

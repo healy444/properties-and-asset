@@ -34,7 +34,7 @@ class AuthController extends Controller
 
             $token = $user->createToken('auth_token')->plainTextToken;
             $audit = app(AuditLogService::class);
-            $audit->log('LOGIN', 'User', Auth::id(), null, ['ip' => $request->ip()]);
+            $audit->log('LOGIN', 'User', Auth::id());
 
             return response()->json(['user' => $user, 'token' => $token]);
         }
@@ -45,7 +45,7 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         $audit = app(AuditLogService::class);
-        $audit->log('LOGOUT', 'User', Auth::id(), null, ['ip' => $request->ip()]);
+        $audit->log('LOGOUT', 'User', Auth::id());
 
         $request->user()?->currentAccessToken()?->delete();
         Auth::guard('web')->logout();

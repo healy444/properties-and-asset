@@ -28,7 +28,6 @@ class AuditLogService
             'old_values' => $oldValues,
             'new_values' => $newValues,
             'metadata' => $metadata,
-            'ip_address' => Request::ip(),
             'user_agent' => Request::userAgent(),
         ]);
     }
@@ -130,7 +129,6 @@ class AuditLogService
         return AuditLog::create([
             'user_id' => $userId ?? Auth::id(),
             'action' => $action,
-            'ip_address' => Request::ip(),
             'user_agent' => Request::userAgent(),
         ]);
     }

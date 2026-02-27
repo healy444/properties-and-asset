@@ -117,7 +117,6 @@ export interface AuditLog {
     old_values?: any;
     new_values?: any;
     metadata?: any;
-    ip_address?: string;
     user_agent?: string;
     created_at: string;
 

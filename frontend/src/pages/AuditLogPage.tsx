@@ -154,12 +154,6 @@ const AuditLogPage: React.FC = () => {
             },
         },
         {
-            title: 'IP Address',
-            dataIndex: 'ip_address',
-            key: 'ip_address',
-            responsive: responsiveMd,
-        },
-        {
             title: 'Details',
             key: 'details',
             className: 'audit-log__details-col',
