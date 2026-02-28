@@ -119,10 +119,14 @@ const ReferenceManagementPage: React.FC = () => {
 
     const mutation = useMutation({
         mutationFn: async (values: any) => {
-            if (editingId) {
-                return axios.put(`/references/${activeTab}/${editingId}`, values);
+            const payload = { ...values };
+            if (activeTab === 'branches' && payload.parent_id === undefined) {
+                payload.parent_id = null;
             }
-            return axios.post(`/references/${activeTab}`, values);
+            if (editingId) {
+                return axios.put(`/references/${activeTab}/${editingId}`, payload);
+            }
+            return axios.post(`/references/${activeTab}`, payload);
         },
         onSuccess: () => {
             message.success('Success');
@@ -283,9 +287,14 @@ const ReferenceManagementPage: React.FC = () => {
                             {divisions?.map((d: any) => <Select.Option key={d.id} value={d.id}>{d.name}</Select.Option>)}
                         </Select>
                     </Form.Item>
-                    <Form.Item name="parent_id" label="Parent Branch"><Select allowClear>
+                    <Form.Item name="parent_id" label="Parent Branch">
+                        <Select
+                            allowClear
+                            onClear={() => form.setFieldsValue({ parent_id: null })}
+                        >
                         {branches?.map((b: any) => <Select.Option key={b.id} value={b.id}>{b.name}</Select.Option>)}
-                    </Select></Form.Item>
+                        </Select>
+                    </Form.Item>
                 </>
             )
         },
