@@ -46,7 +46,20 @@ body[data-theme='dark'] .user-list__title {
   color: #f8fafc;
 }
 
+.user-list__modal .ant-modal {
+  max-width: 960px;
+}
+
+.user-list__modal .ant-modal-body .ant-row {
+  row-gap: 8px;
+}
+
 @media (max-width: 768px) {
+  .user-list__modal .ant-modal {
+    width: 95% !important;
+    margin: 0 auto;
+  }
+
   .user-list__add-button {
     width: 100%;
   }

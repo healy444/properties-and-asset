@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use App\Models\Branch;
+use App\Models\Division;
 
 /**
  * @property int $id
@@ -31,6 +32,7 @@ class User extends Authenticatable
         'date_of_birth',
         'username',
         'role',
+        'division_id',
         'branch',
         'email',
         'password',
@@ -126,5 +128,24 @@ class User extends Authenticatable
         $branchIdCache[$this->branch] = Branch::where('name', $this->branch)->value('id');
 
         return $branchIdCache[$this->branch];
+    }
+
+    public function getDivisionId(): ?int
+    {
+        if ($this->division_id) {
+            return (int) $this->division_id;
+        }
+
+        $branchId = $this->getBranchId();
+        if (!$branchId) {
+            return null;
+        }
+
+        return Branch::where('id', $branchId)->value('division_id');
+    }
+
+    public function division()
+    {
+        return $this->belongsTo(Division::class);
     }
 }

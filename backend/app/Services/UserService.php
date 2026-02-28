@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Models\Branch;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use App\Services\AuditLogService;
+use Illuminate\Validation\ValidationException;
 
 class UserService
 {
@@ -22,6 +24,8 @@ class UserService
     public function createUser(array $data): User
     {
         return DB::transaction(function () use ($data) {
+            $this->validateBranchDivision($data);
+
             $user = User::create([
                 'last_name' => $data['last_name'],
                 'first_name' => $data['first_name'],
@@ -30,6 +34,7 @@ class UserService
                 'username' => $data['username'],
                 'email' => $data['email'],
                 'role' => $data['role'],
+                'division_id' => $data['division_id'] ?? null,
                 'branch' => $data['branch'] ?? null,
                 'password' => Hash::make($data['password']),
                 'is_active' => true,
@@ -48,6 +53,12 @@ class UserService
     {
         return DB::transaction(function () use ($user, $data) {
             $oldValues = $user->toArray();
+
+            $this->validateBranchDivision([
+                'division_id' => $data['division_id'] ?? $user->division_id,
+                'branch' => $data['branch'] ?? $user->branch,
+                'role' => $data['role'] ?? $user->role,
+            ]);
 
             $user->update($data);
 
@@ -90,5 +101,25 @@ class UserService
 
             return $user;
         });
+    }
+
+    private function validateBranchDivision(array $data): void
+    {
+        $role = $data['role'] ?? null;
+        $branchName = $data['branch'] ?? null;
+        $divisionId = $data['division_id'] ?? null;
+
+        if (!$branchName) {
+            throw ValidationException::withMessages(['branch' => 'Branch is required.']);
+        }
+
+        $branch = Branch::where('name', $branchName)->first();
+        if (!$branch) {
+            throw ValidationException::withMessages(['branch' => 'Branch not found.']);
+        }
+
+        if ($divisionId && $branch->division_id && (int) $branch->division_id !== (int) $divisionId) {
+            throw ValidationException::withMessages(['division_id' => 'Branch does not belong to the selected division.']);
+        }
     }
 }

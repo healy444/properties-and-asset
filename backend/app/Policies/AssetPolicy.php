@@ -19,7 +19,16 @@ class AssetPolicy
             return false;
         }
 
-        return (int) $asset->branch_id === (int) $branchId;
+        if ((int) $asset->branch_id !== (int) $branchId) {
+            return false;
+        }
+
+        $divisionId = $user->getDivisionId();
+        if (!$divisionId) {
+            return true;
+        }
+
+        return (int) $asset->division_id === (int) $divisionId;
     }
 
     /**

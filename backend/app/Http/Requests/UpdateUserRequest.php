@@ -35,7 +35,8 @@ class UpdateUserRequest extends FormRequest
             'middle_name' => 'nullable|string|max:255',
             'suffix' => 'nullable|string|max:10',
             'role' => ['sometimes', 'string', Rule::in($roleAllowed)],
-            'branch' => ['nullable', 'string', 'max:255', Rule::requiredIf(fn () => $this->input('role') === 'branch_custodian')],
+            'division_id' => ['required', 'exists:divisions,id'],
+            'branch' => ['required', 'string', 'max:255'],
         ];
     }
 }

@@ -37,6 +37,7 @@ class AssetController extends Controller
         $isAdmin = in_array($request->user()?->role, ['admin', 'super_admin']);
         $user = $request->user();
         $branchId = $user?->isBranchCustodian() ? $user->getBranchId() : null;
+        $divisionId = $user?->isBranchCustodian() ? $user->getDivisionId() : null;
         if ($user?->isBranchCustodian() && !$branchId) {
             return response()->json(['message' => 'Branch is not assigned'], 403);
         }
@@ -87,6 +88,10 @@ class AssetController extends Controller
                 });
             });
 
+        if ($divisionId) {
+            $assetsQuery->where('division_id', $divisionId);
+        }
+
         if ($branchId) {
             $assetsQuery->where('branch_id', $branchId);
         }
@@ -122,8 +127,12 @@ class AssetController extends Controller
 
         if ($user?->isBranchCustodian()) {
             $branchId = $user->getBranchId();
+            $divisionId = $user->getDivisionId();
             if (!$branchId || (int) $validated['branch_id'] !== (int) $branchId) {
                 return response()->json(['message' => 'Unauthorized branch access'], 403);
+            }
+            if ($divisionId && (int) $validated['division_id'] !== (int) $divisionId) {
+                return response()->json(['message' => 'Unauthorized division access'], 403);
             }
             // Branch custodians can only create drafts for admin approval.
             $validated['is_draft'] = true;
@@ -172,8 +181,12 @@ class AssetController extends Controller
 
         if ($user?->isBranchCustodian() && array_key_exists('branch_id', $validated)) {
             $branchId = $user->getBranchId();
+            $divisionId = $user->getDivisionId();
             if (!$branchId || (int) $validated['branch_id'] !== (int) $branchId) {
                 return response()->json(['message' => 'Unauthorized branch access'], 403);
+            }
+            if ($divisionId && array_key_exists('division_id', $validated) && (int) $validated['division_id'] !== (int) $divisionId) {
+                return response()->json(['message' => 'Unauthorized division access'], 403);
             }
         }
         if ($user?->isBranchCustodian() && $request->boolean('submit_for_review')) {
@@ -304,10 +317,14 @@ class AssetController extends Controller
         $user = $request->user();
         if ($user?->isBranchCustodian()) {
             $branchId = $user->getBranchId();
+            $divisionId = $user->getDivisionId();
             if (!$branchId) {
                 return response()->json(['message' => 'Branch is not assigned'], 403);
             }
             $filters['branch_id'] = $branchId;
+            if ($divisionId) {
+                $filters['division_id'] = $divisionId;
+            }
         }
 
         $this->auditLogService->logExport('assets', $filters);

@@ -3,6 +3,8 @@
 namespace App\Imports;
 
 use App\Models\User;
+use App\Models\Division;
+use App\Models\Branch;
 use App\Services\UserService;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -27,6 +29,16 @@ class UserImport implements ToCollection, WithHeadingRow
         if ($this->user && $this->user->role === 'admin') {
             $roleAllowed = ['branch_custodian'];
         }
+
+        $normalizeVal = function ($value) {
+            $value = trim((string) $value);
+            $value = preg_replace('/\s+/', ' ', $value);
+            return strtolower($value);
+        };
+
+        $divisionByName = Division::all()->mapWithKeys(fn($division) => [$normalizeVal($division->name) => $division->id]);
+        $divisionByCode = Division::all()->mapWithKeys(fn($division) => [$normalizeVal($division->code) => $division->id]);
+        $branchByName = Branch::all()->mapWithKeys(fn($branch) => [$normalizeVal($branch->name) => $branch]);
 
         $seenEmails = [];
         $seenUsernames = [];
@@ -72,6 +84,7 @@ class UserImport implements ToCollection, WithHeadingRow
             $email = $getValue(['email', 'emailaddress', 'email_address']);
             $password = $getValue(['initialpassword', 'password', 'initial_password']);
             $roleRaw = $getValue(['role', 'userrole', 'user_role']);
+            $divisionRaw = $getValue(['division', 'divisionname', 'division_name', 'divisioncode', 'division_code']);
             $branchRaw = $getValue(['branch', 'branchname', 'office', 'location']);
 
             $firstName = $firstName ? trim((string) $firstName) : '';
@@ -80,6 +93,7 @@ class UserImport implements ToCollection, WithHeadingRow
             $email = $email ? trim((string) $email) : '';
             $password = $password ? trim((string) $password) : '';
             $roleRaw = $roleRaw ? trim((string) $roleRaw) : '';
+            $divisionRaw = $divisionRaw ? trim((string) $divisionRaw) : '';
             $branchRaw = $branchRaw ? trim((string) $branchRaw) : '';
 
             if ($firstName === '') {
@@ -141,14 +155,41 @@ class UserImport implements ToCollection, WithHeadingRow
                 }
             }
 
+            $divisionId = null;
+            if ($divisionRaw !== '') {
+                $divisionKey = $normalizeVal($divisionRaw);
+                $divisionId = $divisionByName->get($divisionKey) ?? $divisionByCode->get($divisionKey);
+                if (!$divisionId) {
+                    $rowErrors[] = "Row {$rowNumber}: Division '{$divisionRaw}' not found.";
+                }
+            }
+
             $branch = $branchRaw !== '' ? $branchRaw : null;
             if ($normalizedRole === 'branch_custodian') {
                 $branch = $branch ?: $this->user?->branch;
                 if (!$branch) {
                     $rowErrors[] = "Row {$rowNumber}: Branch is required for branch custodians and your account has no branch assigned.";
                 }
+                if (!$divisionId) {
+                    $divisionId = $this->user?->division_id;
+                }
+                if (!$divisionId) {
+                    $rowErrors[] = "Row {$rowNumber}: Division is required for branch custodians and your account has no division assigned.";
+                }
             } elseif (in_array($normalizedRole, ['admin', 'super_admin'], true)) {
                 $branch = $branch ?: 'Head Office';
+            }
+
+            if ($branch) {
+                $branchKey = $normalizeVal($branch);
+                $branchModel = $branchByName->get($branchKey);
+                if (!$branchModel) {
+                    $rowErrors[] = "Row {$rowNumber}: Branch '{$branch}' not found.";
+                } elseif ($divisionId && $branchModel->division_id && (int) $branchModel->division_id !== (int) $divisionId) {
+                    $rowErrors[] = "Row {$rowNumber}: Branch and division do not match.";
+                } elseif (!$divisionId && $branchModel->division_id) {
+                    $divisionId = $branchModel->division_id;
+                }
             }
 
             if (!empty($rowErrors)) {
@@ -163,6 +204,7 @@ class UserImport implements ToCollection, WithHeadingRow
                 'email' => $email,
                 'password' => $password,
                 'role' => $normalizedRole,
+                'division_id' => $divisionId,
                 'branch' => $branch,
             ]);
         }

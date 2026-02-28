@@ -23,6 +23,7 @@ class UserFactory extends Factory
      */
     public function definition(): array
     {
+        $branch = \App\Models\Branch::factory()->create();
         return [
             'first_name' => fake()->firstName(),
             'last_name' => fake()->lastName(),
@@ -33,6 +34,8 @@ class UserFactory extends Factory
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
             'role' => 'branch_custodian',
+            'division_id' => $branch->division_id,
+            'branch' => $branch->name,
             'is_active' => true,
         ];
     }

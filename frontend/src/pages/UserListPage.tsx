@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Table, Button, Tag, Space, Card, Input, Select, Modal, message, Form, Tooltip, Upload, Radio } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Table, Button, Tag, Space, Card, Input, Select, Modal, message, Form, Tooltip, Upload, Radio, Row, Col } from 'antd';
 import type { Breakpoint } from 'antd/es/_util/responsiveObserver';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -37,8 +37,11 @@ const UserListPage: React.FC = () => {
     const [passwordForm] = Form.useForm();
     const queryClient = useQueryClient();
     const { user: currentUser } = useAuth();
-    const { branches } = useReferences();
+    const { branches, divisions } = useReferences();
     const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
+    const selectedDivisionId = Form.useWatch('division_id', form);
+    const selectedBranchName = Form.useWatch('branch', form);
+    const selectedRole = Form.useWatch('role', form);
 
     const { data: users, isLoading, refetch } = useQuery({
         queryKey: ['users', search, role],
@@ -131,10 +134,12 @@ const UserListPage: React.FC = () => {
     };
 
     const handleEdit = (user: User) => {
+        const matchedBranch = branches.data?.find(branch => branch.name === user.branch);
         setEditingUser(user);
         form.setFieldsValue({
             ...user,
             branch: user.branch || (user.role === 'super_admin' || user.role === 'admin' ? 'Head Office' : user.branch),
+            division_id: user.division_id ?? matchedBranch?.division_id,
         });
         setIsModalVisible(true);
     };
@@ -149,6 +154,30 @@ const UserListPage: React.FC = () => {
         setEditingUser(user);
         setIsPasswordModalVisible(true);
     };
+
+    useEffect(() => {
+        if (!branches.data?.length || !selectedBranchName) {
+            return;
+        }
+        const branch = branches.data.find(b => b.name === selectedBranchName);
+        if (branch?.division_id && form.getFieldValue('division_id') !== branch.division_id) {
+            form.setFieldsValue({ division_id: branch.division_id });
+        }
+    }, [branches.data, selectedBranchName, form]);
+
+    useEffect(() => {
+        if (!branches.data?.length) {
+            return;
+        }
+        const branchName = form.getFieldValue('branch');
+        if (!branchName || !selectedDivisionId) {
+            return;
+        }
+        const branch = branches.data.find(b => b.name === branchName);
+        if (branch?.division_id && branch.division_id !== selectedDivisionId) {
+            form.setFieldsValue({ branch: undefined });
+        }
+    }, [branches.data, selectedDivisionId, form]);
 
     const responsiveMd: Breakpoint[] = ['md'];
     const columns: ColumnsType<User> = [
@@ -181,6 +210,15 @@ const UserListPage: React.FC = () => {
                         {role.toUpperCase().replace('_', ' ')}
                     </Tag>
                 );
+            },
+        },
+        {
+            title: 'Division',
+            dataIndex: 'division_id',
+            key: 'division_id',
+            render: (divisionId?: number | null) => {
+                const division = divisions.data?.find(d => d.id === divisionId);
+                return division?.name || '-';
             },
         },
         {
@@ -326,94 +364,133 @@ const UserListPage: React.FC = () => {
                 onCancel={() => setIsModalVisible(false)}
                 onOk={() => form.submit()}
                 confirmLoading={createUpdateMutation.isPending}
+                width={860}
+                className="user-list__modal"
             >
                 <Form
                     form={form}
                     layout="vertical"
                     onFinish={values => createUpdateMutation.mutate(values)}
                 >
-                    <Form.Item
-                        name="first_name"
-                        label="First Name"
-                        rules={[{ required: true, message: 'Please enter first name' }]}
-                    >
-                        <Input />
-                    </Form.Item>
-                    <Form.Item
-                        name="last_name"
-                        label="Last Name"
-                        rules={[{ required: true, message: 'Please enter last name' }]}
-                    >
-                        <Input />
-                    </Form.Item>
-                    <Form.Item
-                        name="username"
-                        label="Username"
-                        rules={[{ required: true, message: 'Please enter username' }]}
-                    >
-                        <Input />
-                    </Form.Item>
-                    <Form.Item
-                        name="email"
-                        label="Email"
-                        rules={[{ required: true, type: 'email', message: 'Please enter a valid email' }]}
-                    >
-                        <Input />
-                    </Form.Item>
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="first_name"
+                                label="First Name"
+                                rules={[{ required: true, message: 'Please enter first name' }]}
+                            >
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="last_name"
+                                label="Last Name"
+                                rules={[{ required: true, message: 'Please enter last name' }]}
+                            >
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="username"
+                                label="Username"
+                                rules={[{ required: true, message: 'Please enter username' }]}
+                            >
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="email"
+                                label="Email"
+                                rules={[{ required: true, type: 'email', message: 'Please enter a valid email' }]}
+                            >
+                                <Input />
+                            </Form.Item>
+                        </Col>
+                    </Row>
                     {!editingUser && (
-                        <Form.Item
-                            name="password"
-                            label="Initial Password"
-                            rules={[{ required: true, message: 'Please enter initial password' }]}
-                        >
-                            <Input.Password />
-                        </Form.Item>
+                        <Row gutter={16}>
+                            <Col xs={24} md={12}>
+                                <Form.Item
+                                    name="password"
+                                    label="Initial Password"
+                                    rules={[{ required: true, message: 'Please enter initial password' }]}
+                                >
+                                    <Input.Password />
+                                </Form.Item>
+                            </Col>
+                        </Row>
                     )}
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                name="role"
+                                label="Role"
+                                rules={[{ required: true, message: 'Please select a role' }]}
+                            >
+                                <Select
+                                    onChange={(value) => {
+                                        if ((value === 'super_admin' || value === 'admin') && !form.getFieldValue('branch')) {
+                                            const headOffice = branches.data?.find(branch => branch.name === 'Head Office');
+                                            form.setFieldsValue({
+                                                branch: 'Head Office',
+                                                division_id: headOffice?.division_id,
+                                            });
+                                        }
+                                    }}
+                                >
+                                    {currentUser?.role === 'super_admin' && <Option value="super_admin">Super Admin</Option>}
+                                    {currentUser?.role === 'super_admin' && <Option value="admin">Admin</Option>}
+                                    <Option value="branch_custodian">Branch Custodian</Option>
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                    </Row>
+
+                    <Row gutter={16}>
+                        <Col xs={24} md={12}>
                     <Form.Item
-                        name="role"
-                        label="Role"
-                        rules={[{ required: true, message: 'Please select a role' }]}
+                        name="division_id"
+                        label="Division"
+                        rules={[{ required: true, message: 'Please select division' }]}
                     >
                         <Select
-                            onChange={(value) => {
-                                if ((value === 'super_admin' || value === 'admin') && !form.getFieldValue('branch')) {
-                                    form.setFieldsValue({ branch: 'Head Office' });
-                                }
-                            }}
-                        >
-                            {currentUser?.role === 'super_admin' && <Option value="super_admin">Super Admin</Option>}
-                            {currentUser?.role === 'super_admin' && <Option value="admin">Admin</Option>}
-                            <Option value="branch_custodian">Branch Custodian</Option>
-                        </Select>
-                    </Form.Item>
-
+                            placeholder="Select division"
+                            loading={divisions.isLoading}
+                            disabled={!selectedRole}
+                                    options={divisions.data?.map(division => ({
+                                        label: division.name,
+                                        value: division.id,
+                                    }))}
+                                />
+                            </Form.Item>
+                        </Col>
+                        <Col xs={24} md={12}>
                     <Form.Item
-                        noStyle
-                        shouldUpdate={(prevValues, currentValues) => prevValues.role !== currentValues.role}
+                        name="branch"
+                        label="Branch"
+                        rules={[{ required: true, message: 'Please select branch' }]}
                     >
-                        {({ getFieldValue }) => {
-                            const role = getFieldValue('role');
-                            if (!role) {
-                                return null;
-                            }
-                            return (
-                                <Form.Item
-                                    name="branch"
-                                    label="Branch"
-                                    rules={[{ required: role === 'branch_custodian', message: 'Please select branch' }]}
-                                >
-                                    <Select
-                                        placeholder="Select branch"
-                                        loading={branches.isLoading}
-                                        options={branches.data?.map(branch => ({
-                                            label: branch.name,
-                                            value: branch.name,
-                                        }))}
-                                    />
-                                </Form.Item>
-                            );
-                        }}
-                    </Form.Item>
+                        <Select
+                            placeholder="Select branch"
+                            loading={branches.isLoading}
+                                    disabled={!selectedRole || !selectedDivisionId}
+                                    options={selectedDivisionId
+                                        ? branches.data
+                                            ?.filter(branch => branch.division_id === selectedDivisionId)
+                                            .map(branch => ({
+                                                label: branch.name,
+                                                value: branch.name,
+                                            }))
+                                        : []}
+                                />
+                            </Form.Item>
+                        </Col>
+                    </Row>
                 </Form>
             </Modal>
 

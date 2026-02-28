@@ -27,10 +27,13 @@ class AssetApiTest extends TestCase
     {
         parent::setUp();
 
-        $this->admin = User::factory()->create(['role' => 'admin']);
-        $this->manager = User::factory()->create(['role' => 'branch_custodian']);
-
         $this->branch = Branch::factory()->create(['code' => 'HO']);
+        $this->admin = User::factory()->create(['role' => 'admin']);
+        $this->manager = User::factory()->create([
+            'role' => 'branch_custodian',
+            'branch' => $this->branch->name,
+            'division_id' => $this->branch->division_id,
+        ]);
         $this->category = Category::factory()->create(['code' => 'IT']);
         $this->assetType = AssetType::factory()->create([
             'category_id' => $this->category->id,

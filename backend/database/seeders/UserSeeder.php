@@ -42,6 +42,7 @@ class UserSeeder extends Seeder
             'email' => 'manager@coop.local',
             'password' => \Illuminate\Support\Facades\Hash::make($managerPassword),
             'role' => 'branch_custodian',
+            'branch' => 'Head Office',
             'is_active' => true,
             'profile_photo_path' => null,
         ]);

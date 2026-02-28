@@ -22,6 +22,8 @@ class UserImportTemplateExport implements FromCollection, WithHeadings
             'EMAIL',
             'INITIAL PASSWORD',
             'ROLE',
+            'DIVISION',
+            'BRANCH',
         ];
     }
 }

@@ -11,6 +11,7 @@ export interface User {
     role: UserRole;
     is_active: boolean;
     profile_photo_url?: string;
+    division_id?: number | null;
     branch?: string;
 }
 
