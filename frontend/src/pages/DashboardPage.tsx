@@ -1,5 +1,5 @@
-﻿import React from 'react';
-import { Card, Col, Row, Statistic, Table, Typography, Spin, Tag, theme } from 'antd';
+import React, { useState } from 'react';
+import { Card, Col, Row, Statistic, Table, Typography, Spin, Tag, theme, Select } from 'antd';
 import { ShopOutlined } from '@ant-design/icons';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import {
@@ -15,6 +15,7 @@ import type { ChartOptions } from 'chart.js';
 import { useDashboardStats } from '../hooks/useDashboardStats';
 import { useAuth } from '../context/AuthContext';
 import { useThemeMode } from '../context/ThemeContext';
+import { useReferences } from '../hooks/useReferences';
 import './DashboardPage.css';
 
 const { Title, Text } = Typography;
@@ -22,11 +23,14 @@ const { Title, Text } = Typography;
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
 
 const DashboardPage: React.FC = () => {
-    const { data: stats, isLoading } = useDashboardStats();
+    const [selectedDivisionIds, setSelectedDivisionIds] = useState<number[]>([]);
+    const { data: stats, isLoading } = useDashboardStats(selectedDivisionIds);
     const { token } = theme.useToken();
     const { user } = useAuth();
     const isBranchCustodian = user?.role === 'branch_custodian';
     const { mode } = useThemeMode();
+    const { divisions } = useReferences();
+    const pesoSign = '\u20B1';
 
     if (isLoading || !stats) {
         return (
@@ -215,8 +219,20 @@ const DashboardPage: React.FC = () => {
         ];
 
     const branchChartData = {
-        labels: branchLabels,
-        datasets: branchDatasets,
+        labels: branchLabels.length ? branchLabels : ['No data'],
+        datasets: branchLabels.length
+            ? branchDatasets
+            : [
+                {
+                    label: 'Assets',
+                    data: [0],
+                    backgroundColor: token.colorPrimary,
+                    barThickness,
+                    categoryPercentage: 0.7,
+                    barPercentage: 0.5,
+                    borderRadius: 15,
+                },
+            ],
     };
 
     const branchChartOptions: ChartOptions<'bar'> = {
@@ -332,6 +348,23 @@ const DashboardPage: React.FC = () => {
                 `}</style>
             )}
 
+            {!isBranchCustodian && (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                    <Select
+                        mode="multiple"
+                        allowClear
+                        placeholder="All divisions"
+                        style={{ minWidth: 260 }}
+                        value={selectedDivisionIds}
+                        onChange={(values) => setSelectedDivisionIds(values as number[])}
+                        options={(divisions.data || []).map((division) => ({
+                            label: division.name,
+                            value: division.id,
+                        }))}
+                    />
+                </div>
+            )}
+
             {/* Top Row: Key Metrics */}
             <div style={sectionLabelStyle}>Key metrics</div>
             <div
@@ -355,7 +388,7 @@ const DashboardPage: React.FC = () => {
                             title="Total Acquisition Cost"
                             value={stats.acquisition_cost}
                             formatter={(val) => formatCurrency(Number(val))}
-                            prefix="₱"
+                            prefix={pesoSign}
                         />
                         <Text type="secondary" style={{ fontSize: 12 }}>Total asset investment</Text>
                     </Card>
@@ -365,6 +398,7 @@ const DashboardPage: React.FC = () => {
                             value={stats.total_depreciation}
                             valueStyle={{ color: '#cf1322' }}
                             formatter={(val) => formatCurrency(Number(val))}
+                            prefix={pesoSign}
                         />
                         <Text type="secondary" style={{ fontSize: 12 }}>All-time value reduction</Text>
                     </Card>
@@ -373,7 +407,7 @@ const DashboardPage: React.FC = () => {
                             title="Monthly Depreciation"
                             value={stats.monthly_depreciation_expense}
                             formatter={(val) => formatCurrency(Number(val))}
-                            prefix="₱"
+                            prefix={pesoSign}
                         />
                         <Text type="secondary" style={{ fontSize: 12 }}>Current monthly expense</Text>
                     </Card>
@@ -494,3 +528,4 @@ const DashboardPage: React.FC = () => {
 };
 
 export default DashboardPage;
+

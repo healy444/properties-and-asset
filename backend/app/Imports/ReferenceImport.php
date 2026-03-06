@@ -136,10 +136,6 @@ class ReferenceImport implements ToCollection, WithHeadingRow
                 $rowErrors[] = "Row {$rowNumber}: Name is required.";
             }
 
-            if (in_array($this->type, ['divisions', 'branches', 'categories'], true) && $code === '') {
-                $rowErrors[] = "Row {$rowNumber}: Code is required.";
-            }
-
             if ($name !== '') {
                 $nameKey = strtolower($name);
                 if (in_array($nameKey, $seenNames, true)) {

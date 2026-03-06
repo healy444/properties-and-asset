@@ -17,12 +17,22 @@ class DashboardController extends Controller
         $isAdmin = in_array($user?->role, ['admin', 'super_admin'], true);
         $isBranchCustodian = $user?->role === 'branch_custodian';
         $branchId = $isBranchCustodian ? $user?->getBranchId() : null;
+        $divisionIds = $request->input('division_ids');
+        if (is_string($divisionIds)) {
+            $divisionIds = array_filter(explode(',', $divisionIds));
+        }
+        if (is_array($divisionIds)) {
+            $divisionIds = array_values(array_filter(array_map('intval', $divisionIds)));
+        } else {
+            $divisionIds = null;
+        }
         if ($isBranchCustodian && !$branchId) {
             return response()->json(['message' => 'Branch is not assigned'], 403);
         }
 
         $assetBaseQuery = Asset::query()
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId));
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->when($divisionIds, fn($q) => $q->whereIn('division_id', $divisionIds));
 
         // 1. Total Assets
         $totalAssets = (clone $assetBaseQuery)->where('is_draft', false)->count();
@@ -81,7 +91,9 @@ class DashboardController extends Controller
         // 8. Assets by Branch
         $byBranchStacked = [];
         if ($isAdmin) {
-            $branches = Branch::select('id', 'name', 'parent_id')->get();
+            $branches = Branch::select('id', 'name', 'parent_id', 'division_id')
+                ->when($divisionIds, fn($q) => $q->whereIn('division_id', $divisionIds))
+                ->get();
             $countsByBranch = (clone $assetBaseQuery)->where('is_draft', false)
                 ->where('asset_status', 'active')
                 ->select('branch_id', DB::raw('count(*) as count'))

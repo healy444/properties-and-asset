@@ -298,6 +298,27 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
         }
     };
 
+    const handleRefresh = async () => {
+        const key = 'asset-refresh';
+        message.loading({ content: 'Fetching data...', key });
+        setParams(prev => ({
+            ...prev,
+            page: 1,
+            search: '',
+            division_id: isBranchCustodian ? branchForUser?.division_id ?? undefined : undefined,
+            branch_id: isBranchCustodian ? branchIdForUser : undefined,
+            category_id: undefined,
+            status: 'active' as any,
+            deletion_view: undefined,
+        }));
+        try {
+            await queryClient.invalidateQueries({ queryKey: ['assets'] });
+            message.success({ content: 'Data is up to date.', key, duration: 2 });
+        } catch {
+            message.error({ content: 'Failed to refresh data.', key, duration: 2 });
+        }
+    };
+
     const handleRequestDelete = (id: number) => {
         // Admin/super admin: direct delete (no request flow)
         if (user?.role === 'admin' || user?.role === 'super_admin') {
@@ -696,18 +717,7 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                     />
                     <Button
                         icon={<ReloadOutlined />}
-                        onClick={() => {
-                            setParams(prev => ({
-                                ...prev,
-                                page: 1,
-                                search: '',
-                                division_id: isBranchCustodian ? branchForUser?.division_id ?? undefined : undefined,
-                                branch_id: isBranchCustodian ? branchIdForUser : undefined,
-                                category_id: undefined,
-                                status: 'active' as any,
-                                deletion_view: undefined,
-                            }));
-                        }}
+                        onClick={handleRefresh}
                     >
                         Refresh
                     </Button>

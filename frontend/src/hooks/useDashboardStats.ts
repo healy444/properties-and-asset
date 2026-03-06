@@ -25,11 +25,12 @@ export interface DashboardStats {
     top_assigned: Array<{ assigned_to: string; count: number }>;
 }
 
-export const useDashboardStats = () => {
+export const useDashboardStats = (divisionIds: number[] = []) => {
     return useQuery<DashboardStats>({
-        queryKey: ['dashboard-stats'],
+        queryKey: ['dashboard-stats', divisionIds],
         queryFn: async () => {
-            const { data } = await api.get('/dashboard/stats');
+            const params = divisionIds.length ? { division_ids: divisionIds } : undefined;
+            const { data } = await api.get('/dashboard/stats', { params });
             return data;
         },
     });

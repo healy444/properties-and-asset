@@ -16,7 +16,6 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from '../api/axios';
 import type { User, UserRole } from '../types';
-import dayjs from 'dayjs';
 import { useAuth } from '../context/AuthContext';
 import { useReferences } from '../hooks/useReferences';
 import './UserListPage.css';
@@ -133,6 +132,17 @@ const UserListPage: React.FC = () => {
         }
     };
 
+    const handleRefresh = async () => {
+        const key = 'users-refresh';
+        message.loading({ content: 'Fetching data...', key });
+        try {
+            await refetch();
+            message.success({ content: 'Data is up to date.', key, duration: 2 });
+        } catch {
+            message.error({ content: 'Failed to refresh data.', key, duration: 2 });
+        }
+    };
+
     const handleEdit = (user: User) => {
         const matchedBranch = branches.data?.find(branch => branch.name === user.branch);
         setEditingUser(user);
@@ -239,13 +249,6 @@ const UserListPage: React.FC = () => {
             ),
         },
         {
-            title: 'Created At',
-            dataIndex: 'created_at',
-            key: 'created_at',
-            responsive: responsiveMd,
-            render: (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm'),
-        },
-        {
             title: <span className="user-list__actions-title">Actions</span>,
             key: 'actions',
             className: 'user-list__actions-col',
@@ -339,7 +342,7 @@ const UserListPage: React.FC = () => {
                     </Select>
                     <Button
                         icon={<ReloadOutlined />}
-                        onClick={() => refetch()}
+                        onClick={handleRefresh}
                     >
                         Refresh
                     </Button>

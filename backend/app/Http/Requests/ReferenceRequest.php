@@ -43,7 +43,11 @@ class ReferenceRequest extends FormRequest
                         ->where(fn ($query) => $query->where('category_id', $categoryId)),
                 ];
             } else {
-                $rules['code'] = 'required|string|max:50|unique:' . $table . ',code' . ($id ? ',' . $id : '');
+                if ($id) {
+                    $rules['code'] = 'sometimes|filled|string|max:50|unique:' . $table . ',code,' . $id;
+                } else {
+                    $rules['code'] = 'nullable|string|max:50|unique:' . $table . ',code';
+                }
             }
         }
 

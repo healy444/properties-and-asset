@@ -84,6 +84,17 @@ const AuditLogPage: React.FC = () => {
         }
     };
 
+    const handleRefresh = async () => {
+        const key = 'audit-refresh';
+        message.loading({ content: 'Fetching data...', key });
+        try {
+            await refetch();
+            message.success({ content: 'Data is up to date.', key, duration: 2 });
+        } catch {
+            message.error({ content: 'Failed to refresh data.', key, duration: 2 });
+        }
+    };
+
     const responsiveMd: Breakpoint[] = ['md'];
     const columns: ColumnsType<AuditLog> = [
         {
@@ -195,7 +206,7 @@ const AuditLogPage: React.FC = () => {
                         >
                             Export
                         </Button>
-                        <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
+                        <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
                             Refresh
                         </Button>
                     </div>

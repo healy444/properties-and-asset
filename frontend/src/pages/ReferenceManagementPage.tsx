@@ -35,7 +35,85 @@ const ReferenceManagementPage: React.FC = () => {
     const [form] = Form.useForm();
     const queryClient = useQueryClient();
 
-    const generateBaseCode = (name?: string) => {
+    const buildCodeCandidates = (name: string, length: number) => {
+        const cleaned = name.replace(/[^A-Za-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const words = cleaned ? cleaned.split(' ') : [];
+        const letters = cleaned.replace(/[^A-Za-z]/g, '').toUpperCase();
+        let initials = '';
+        words.forEach(w => {
+            const word = w.replace(/[^A-Za-z]/g, '');
+            if (word) initials += word[0].toUpperCase();
+        });
+        const consonants = letters.replace(/[AEIOU]/g, '');
+        const candidates: string[] = [];
+        const seen = new Set<string>();
+        const add = (candidate?: string | null) => {
+            if (!candidate || candidate.length !== length) return;
+            if (seen.has(candidate)) return;
+            seen.add(candidate);
+            candidates.push(candidate);
+        };
+
+        if (initials.length >= length) add(initials.slice(0, length));
+        if (consonants.length >= length) add(consonants.slice(0, length));
+
+        if (length === 2 && letters.length >= 2) {
+            add(`${letters[0]}${letters[letters.length - 1]}`);
+        }
+
+        if (length === 3 && letters.length >= 2) {
+            const middle = consonants.length >= 1 ? consonants[0] : letters[1] || '';
+            if (middle) add(`${letters[0]}${middle}${letters[letters.length - 1]}`);
+        }
+
+        [initials, consonants].forEach(base => {
+            for (let i = 0; i <= base.length - length; i += 1) {
+                add(base.slice(i, i + length));
+            }
+        });
+
+        const limit = 200;
+        let count = 0;
+        if (length === 2 && letters.length >= 2) {
+            for (let i = 0; i < letters.length - 1; i += 1) {
+                for (let j = i + 1; j < letters.length; j += 1) {
+                    add(`${letters[i]}${letters[j]}`);
+                    count += 1;
+                    if (count >= limit) break;
+                }
+                if (count >= limit) break;
+            }
+        }
+        if (length === 3 && letters.length >= 3) {
+            for (let i = 0; i < letters.length - 2; i += 1) {
+                for (let j = i + 1; j < letters.length - 1; j += 1) {
+                    for (let k = j + 1; k < letters.length; k += 1) {
+                        add(`${letters[i]}${letters[j]}${letters[k]}`);
+                        count += 1;
+                        if (count >= limit) break;
+                    }
+                    if (count >= limit) break;
+                }
+                if (count >= limit) break;
+            }
+        }
+
+        return candidates;
+    };
+
+    const ensureUniqueReferenceCode = (name: string, length: number, excludeId?: number) => {
+        const existingCodes = (records || [])
+            .filter((item: any) => item.id !== excludeId)
+            .map((item: any) => (item.code || '').toString().toUpperCase());
+        const existingSet = new Set(existingCodes);
+        const candidates = buildCodeCandidates(name, length);
+        for (const candidate of candidates) {
+            if (!existingSet.has(candidate)) return candidate;
+        }
+        return '';
+    };
+
+    const generateAssetTypeBaseCode = (name?: string) => {
         if (!name) return '';
         const cleaned = name.trim().replace(/\s+/g, ' ');
         if (!cleaned) return '';
@@ -68,16 +146,32 @@ const ReferenceManagementPage: React.FC = () => {
     };
 
     const handleAutoCode = (allValues: any) => {
-        if (activeTab !== 'asset-types') return;
-        const base = generateBaseCode(allValues?.name);
-        const unique = ensureUniqueCode(base, allValues?.category_id, editingId || undefined);
+        if (!['asset-types', 'divisions', 'branches', 'categories'].includes(activeTab)) return;
+        if (editingId) return;
 
-        if (!base) {
-            form.setFieldsValue({ code: undefined });
+        if (activeTab === 'asset-types') {
+            const base = generateAssetTypeBaseCode(allValues?.name);
+            const unique = ensureUniqueCode(base, allValues?.category_id, editingId || undefined);
+
+            if (!base) {
+                form.setFieldsValue({ code: undefined });
+                return;
+            }
+
+            if (unique !== form.getFieldValue('code')) {
+                form.setFieldsValue({ code: unique });
+            }
             return;
         }
 
-        if (unique !== form.getFieldValue('code')) {
+        const length = activeTab === 'categories' ? 3 : 2;
+        const name = (allValues?.name || '').toString();
+        if (!name.trim()) {
+            form.setFieldsValue({ code: undefined });
+            return;
+        }
+        const unique = ensureUniqueReferenceCode(name, length, editingId || undefined);
+        if (unique && unique !== form.getFieldValue('code')) {
             form.setFieldsValue({ code: unique });
         }
     };
@@ -169,6 +263,17 @@ const ReferenceManagementPage: React.FC = () => {
         }
     });
 
+    const handleRefresh = async () => {
+        const key = `references-refresh-${activeTab}`;
+        message.loading({ content: 'Fetching data...', key });
+        try {
+            await refetch();
+            message.success({ content: 'Data is up to date.', key, duration: 2 });
+        } catch {
+            message.error({ content: 'Failed to refresh data.', key, duration: 2 });
+        }
+    };
+
     const handleDownloadTemplate = async () => {
         try {
             const response = await axios.get(`/references/${activeTab}/import-template`, {
@@ -255,7 +360,9 @@ const ReferenceManagementPage: React.FC = () => {
             fields: (
                 <>
                     <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
-                    <Form.Item name="code" label="Code" rules={[{ required: true }]}><Input /></Form.Item>
+                    <Form.Item name="code" label="Code" rules={[{ required: true }]}>
+                        <Input readOnly placeholder="Auto-generated from name" />
+                    </Form.Item>
                 </>
             )
         },
@@ -281,7 +388,9 @@ const ReferenceManagementPage: React.FC = () => {
             fields: (
                 <>
                     <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
-                    <Form.Item name="code" label="Code" rules={[{ required: true }]}><Input /></Form.Item>
+                    <Form.Item name="code" label="Code" rules={[{ required: true }]}>
+                        <Input readOnly placeholder="Auto-generated from name" />
+                    </Form.Item>
                     <Form.Item name="division_id" label="Division" rules={[{ required: true }]}>
                         <Select>
                             {divisions?.map((d: any) => <Select.Option key={d.id} value={d.id}>{d.name}</Select.Option>)}
@@ -305,7 +414,9 @@ const ReferenceManagementPage: React.FC = () => {
             fields: (
                 <>
                     <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
-                    <Form.Item name="code" label="Code" rules={[{ required: true }]}><Input /></Form.Item>
+                    <Form.Item name="code" label="Code" rules={[{ required: true }]}>
+                        <Input readOnly placeholder="Auto-generated from name" />
+                    </Form.Item>
                 </>
             )
         },
@@ -325,7 +436,7 @@ const ReferenceManagementPage: React.FC = () => {
                 <>
                     <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input /></Form.Item>
                     <Form.Item name="code" label="Code" rules={[{ required: true }]}>
-                        <Input disabled placeholder="Auto-generated from name" />
+                        <Input readOnly placeholder="Auto-generated from name" />
                     </Form.Item>
                     <Form.Item name="category_id" label="Category" rules={[{ required: true }]}><Select>
                         {categories?.map((c: any) => <Select.Option key={c.id} value={c.id}>{c.name}</Select.Option>)}
@@ -413,7 +524,7 @@ const ReferenceManagementPage: React.FC = () => {
                                     >
                                         Template
                                     </Button>
-                                    <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isLoading}>
+                                    <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={isLoading}>
                                         Refresh
                                     </Button>
                                     <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd} className="reference-management__add">
