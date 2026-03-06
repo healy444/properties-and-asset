@@ -101,6 +101,8 @@ const DashboardPage: React.FC = () => {
     if (ringItems.length === 0) {
         ringItems.push({ name: 'No data', count: 0 });
     }
+    const ringCount = ringItems.length;
+    const centerValueFontSize = ringCount >= 6 ? 16 : ringCount >= 5 ? 18 : 20;
     const safeTotal = categoryTotal || 1;
     const trackColor = mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : '#f2f4f7';
     const ringThickness = 13;
@@ -153,12 +155,9 @@ const DashboardPage: React.FC = () => {
             ctx.save();
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillStyle = mode === 'dark' ? '#f8fafc' : '#f59e0b';
-            ctx.font = '600 13px "Segoe UI", sans-serif';
-            ctx.fillText('Total', centerX, centerY - 10);
             ctx.fillStyle = mode === 'dark' ? '#e2e8f0' : '#94a3b8';
-            ctx.font = '600 20px "Segoe UI", sans-serif';
-            ctx.fillText(String(categoryTotal), centerX, centerY + 16);
+            ctx.font = `600 ${centerValueFontSize}px "Segoe UI", sans-serif`;
+            ctx.fillText(String(categoryTotal), centerX, centerY);
             ctx.restore();
         },
     };

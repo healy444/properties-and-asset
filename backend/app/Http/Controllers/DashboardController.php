@@ -17,6 +17,7 @@ class DashboardController extends Controller
         $isAdmin = in_array($user?->role, ['admin', 'super_admin'], true);
         $isBranchCustodian = $user?->role === 'branch_custodian';
         $branchId = $isBranchCustodian ? $user?->getBranchId() : null;
+        $userDivisionId = $isBranchCustodian ? $user?->getDivisionId() : null;
         $divisionIds = $request->input('division_ids');
         if (is_string($divisionIds)) {
             $divisionIds = array_filter(explode(',', $divisionIds));
@@ -29,9 +30,23 @@ class DashboardController extends Controller
         if ($isBranchCustodian && !$branchId) {
             return response()->json(['message' => 'Branch is not assigned'], 403);
         }
+        if ($isBranchCustodian && !$userDivisionId) {
+            return response()->json(['message' => 'Division is not assigned'], 403);
+        }
 
         $assetBaseQuery = Asset::query()
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->when($branchId, function ($q) use ($branchId) {
+                $q->where(function ($sq) use ($branchId) {
+                    $sq->where('branch_id', $branchId)
+                        ->orWhereHas('branch', fn($b) => $b->where('parent_id', $branchId));
+                });
+            })
+            ->when($userDivisionId, function ($q) use ($userDivisionId) {
+                $q->where(function ($sq) use ($userDivisionId) {
+                    $sq->where('division_id', $userDivisionId)
+                        ->orWhereHas('branch', fn($b) => $b->where('division_id', $userDivisionId));
+                });
+            })
             ->when($divisionIds, fn($q) => $q->whereIn('division_id', $divisionIds));
 
         // 1. Total Assets

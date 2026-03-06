@@ -20,15 +20,21 @@ class AssetPolicy
         }
 
         if ((int) $asset->branch_id !== (int) $branchId) {
-            return false;
+            $assetBranch = $asset->relationLoaded('branch') ? $asset->branch : $asset->branch()->first();
+            if (!$assetBranch || (int) $assetBranch->parent_id !== (int) $branchId) {
+                return false;
+            }
         }
 
         $divisionId = $user->getDivisionId();
         if (!$divisionId) {
-            return true;
+            return false;
         }
 
-        return (int) $asset->division_id === (int) $divisionId;
+        $assetBranch = $assetBranch ?? ($asset->relationLoaded('branch') ? $asset->branch : $asset->branch()->first());
+        $assetDivisionId = $asset->division_id ?? $assetBranch?->division_id;
+
+        return (int) $assetDivisionId === (int) $divisionId;
     }
 
     /**

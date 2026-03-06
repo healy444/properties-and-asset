@@ -28,6 +28,17 @@ const AssetFormPage: React.FC = () => {
     const { user: currentUser } = useAuth();
     const isSuperAdmin = currentUser?.role === 'super_admin';
     const isBranchCustodian = currentUser?.role === 'branch_custodian';
+    const branchForUser = branches.data?.find(b => b.name === currentUser?.branch);
+    const allowedBranchOptions = isBranchCustodian && branchForUser
+        ? branches.data
+            ?.filter(b => b.division_id === branchForUser.division_id
+                && (b.id === branchForUser.id || b.parent_id === branchForUser.id))
+            .map(b => ({ label: b.name, value: b.id }))
+        : selectedDivisionId
+            ? branches.data
+                ?.filter(b => b.division_id === selectedDivisionId)
+                .map(b => ({ label: b.name, value: b.id }))
+            : [];
 
     const { data: asset, isLoading } = useQuery<Asset>({
         queryKey: ['asset', id],
@@ -53,7 +64,7 @@ const AssetFormPage: React.FC = () => {
         if (!branch) {
             return;
         }
-        if (form.getFieldValue('branch_id') !== branch.id) {
+        if (!form.getFieldValue('branch_id')) {
             form.setFieldsValue({ branch_id: branch.id });
         }
         if (branch.division_id && form.getFieldValue('division_id') !== branch.division_id) {
@@ -198,12 +209,7 @@ const AssetFormPage: React.FC = () => {
                         </Form.Item>
                         <Form.Item name="branch_id" label="Branch" rules={[{ required: true }]}>
                             <Select
-                                disabled={isBranchCustodian}
-                                options={selectedDivisionId
-                                    ? branches.data
-                                        ?.filter(b => b.division_id === selectedDivisionId)
-                                        .map(b => ({ label: b.name, value: b.id }))
-                                    : []}
+                                options={allowedBranchOptions}
                             />
                         </Form.Item>
                         <Form.Item name="category_id" label="Category" rules={[{ required: true }]}>

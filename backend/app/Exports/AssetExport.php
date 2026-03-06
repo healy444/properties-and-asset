@@ -20,8 +20,21 @@ class AssetExport implements FromQuery, WithHeadings, WithMapping
     {
         return Asset::query()
             ->with(['division', 'branch', 'category', 'assetType', 'brand', 'supplier'])
-            ->when($this->filters['division_id'] ?? null, fn($q, $id) => $q->where('division_id', $id))
-            ->when($this->filters['branch_id'] ?? null, fn($q, $id) => $q->where('branch_id', $id))
+            ->when($this->filters['division_id'] ?? null, function ($q, $id) {
+                $q->where(function ($sq) use ($id) {
+                    $sq->where('division_id', $id)
+                        ->orWhereHas('branch', fn($b) => $b->where('division_id', $id));
+                });
+            })
+            ->when($this->filters['branch_id'] ?? null, function ($q, $id) {
+                if (!empty($this->filters['include_child_branches'])) {
+                    return $q->where(function ($sq) use ($id) {
+                        $sq->where('branch_id', $id)
+                            ->orWhereHas('branch', fn($b) => $b->where('parent_id', $id));
+                    });
+                }
+                return $q->where('branch_id', $id);
+            })
             ->when($this->filters['category_id'] ?? null, fn($q, $id) => $q->where('category_id', $id))
             ->when($this->filters['status'] ?? null, function ($q, $status) {
                 if ($status === 'draft') {

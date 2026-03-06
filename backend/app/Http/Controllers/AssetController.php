@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Asset;
+use App\Models\Branch;
 use App\Services\AssetService;
 use App\Services\AuditLogService;
 use App\Http\Requests\StoreAssetRequest;
@@ -41,6 +42,9 @@ class AssetController extends Controller
         if ($user?->isBranchCustodian() && !$branchId) {
             return response()->json(['message' => 'Branch is not assigned'], 403);
         }
+        if ($user?->isBranchCustodian() && !$divisionId) {
+            return response()->json(['message' => 'Division is not assigned'], 403);
+        }
 
         $assetsQuery = Asset::with([
             'division',
@@ -54,7 +58,15 @@ class AssetController extends Controller
             'deleteApprover',
         ])
             ->when($request->division_id, fn($q) => $q->where('division_id', $request->division_id))
-            ->when($request->branch_id, fn($q) => $q->where('branch_id', $request->branch_id))
+            ->when($request->branch_id, function ($q) use ($request, $user) {
+                if ($user?->isBranchCustodian()) {
+                    return $q->where(function ($sq) use ($request) {
+                        $sq->where('branch_id', $request->branch_id)
+                            ->orWhereHas('branch', fn($b) => $b->where('parent_id', $request->branch_id));
+                    });
+                }
+                return $q->where('branch_id', $request->branch_id);
+            })
             ->when($request->category_id, fn($q) => $q->where('category_id', $request->category_id))
             ->when($request->status, function ($q) use ($request, $user, $isAdmin) {
                 if ($request->status === 'draft') {
@@ -89,11 +101,17 @@ class AssetController extends Controller
             });
 
         if ($divisionId) {
-            $assetsQuery->where('division_id', $divisionId);
+            $assetsQuery->where(function ($q) use ($divisionId) {
+                $q->where('division_id', $divisionId)
+                    ->orWhereHas('branch', fn($b) => $b->where('division_id', $divisionId));
+            });
         }
 
         if ($branchId) {
-            $assetsQuery->where('branch_id', $branchId);
+            $assetsQuery->where(function ($q) use ($branchId) {
+                $q->where('branch_id', $branchId)
+                    ->orWhereHas('branch', fn($b) => $b->where('parent_id', $branchId));
+            });
         }
 
         if ($deletionView === 'pending') {
@@ -128,11 +146,22 @@ class AssetController extends Controller
         if ($user?->isBranchCustodian()) {
             $branchId = $user->getBranchId();
             $divisionId = $user->getDivisionId();
-            if (!$branchId || (int) $validated['branch_id'] !== (int) $branchId) {
+            if (!$branchId || !$divisionId) {
                 return response()->json(['message' => 'Unauthorized branch access'], 403);
             }
-            if ($divisionId && (int) $validated['division_id'] !== (int) $divisionId) {
+            if ((int) $validated['division_id'] !== (int) $divisionId) {
                 return response()->json(['message' => 'Unauthorized division access'], 403);
+            }
+            $targetBranch = Branch::select('id', 'parent_id', 'division_id')->find($validated['branch_id']);
+            if (
+                !$targetBranch
+                || (int) $targetBranch->division_id !== (int) $divisionId
+                || !(
+                    (int) $targetBranch->id === (int) $branchId
+                    || (int) $targetBranch->parent_id === (int) $branchId
+                )
+            ) {
+                return response()->json(['message' => 'Unauthorized branch access'], 403);
             }
             // Branch custodians can only create drafts for admin approval.
             $validated['is_draft'] = true;
@@ -182,11 +211,22 @@ class AssetController extends Controller
         if ($user?->isBranchCustodian() && array_key_exists('branch_id', $validated)) {
             $branchId = $user->getBranchId();
             $divisionId = $user->getDivisionId();
-            if (!$branchId || (int) $validated['branch_id'] !== (int) $branchId) {
+            if (!$branchId || !$divisionId) {
                 return response()->json(['message' => 'Unauthorized branch access'], 403);
             }
-            if ($divisionId && array_key_exists('division_id', $validated) && (int) $validated['division_id'] !== (int) $divisionId) {
+            if (!array_key_exists('division_id', $validated) || (int) $validated['division_id'] !== (int) $divisionId) {
                 return response()->json(['message' => 'Unauthorized division access'], 403);
+            }
+            $targetBranch = Branch::select('id', 'parent_id', 'division_id')->find($validated['branch_id']);
+            if (
+                !$targetBranch
+                || (int) $targetBranch->division_id !== (int) $divisionId
+                || !(
+                    (int) $targetBranch->id === (int) $branchId
+                    || (int) $targetBranch->parent_id === (int) $branchId
+                )
+            ) {
+                return response()->json(['message' => 'Unauthorized branch access'], 403);
             }
         }
         if ($user?->isBranchCustodian() && $request->boolean('submit_for_review')) {
@@ -321,10 +361,12 @@ class AssetController extends Controller
             if (!$branchId) {
                 return response()->json(['message' => 'Branch is not assigned'], 403);
             }
-            $filters['branch_id'] = $branchId;
-            if ($divisionId) {
-                $filters['division_id'] = $divisionId;
+            if (!$divisionId) {
+                return response()->json(['message' => 'Division is not assigned'], 403);
             }
+            $filters['branch_id'] = $branchId;
+            $filters['division_id'] = $divisionId;
+            $filters['include_child_branches'] = true;
         }
 
         $this->auditLogService->logExport('assets', $filters);
