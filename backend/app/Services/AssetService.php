@@ -285,4 +285,5 @@ class AssetService
             return $asset;
         });
     }
+
 }

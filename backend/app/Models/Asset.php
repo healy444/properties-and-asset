@@ -37,6 +37,7 @@ class Asset extends Model
         'branch_id',
         'category_id',
         'asset_type_id',
+        'quantity',
         'brand_id',
         'supplier_id',
         'model_number',
@@ -64,6 +65,7 @@ class Asset extends Model
     protected $appends = [
         'accumulated_depreciation',
         'book_value',
+        'is_past_useful_life',
     ];
 
     /**
@@ -176,17 +178,7 @@ class Asset extends Model
             return null;
         }
 
-        $purchaseDate = $this->date_of_purchase instanceof Carbon
-            ? $this->date_of_purchase
-            : Carbon::parse($this->date_of_purchase);
-
-        $asOf = now();
-        // Full months only: subtract one if current day hasn't reached purchase day.
-        $monthsElapsed = ($asOf->year - $purchaseDate->year) * 12 + ($asOf->month - $purchaseDate->month);
-        if ($asOf->day < $purchaseDate->day) {
-            $monthsElapsed -= 1;
-        }
-        $monthsElapsed = max($monthsElapsed, 0);
+        $monthsElapsed = $this->calculateMonthsElapsed();
 
         $cappedMonths = min($monthsElapsed, (int) $this->useful_life_months);
 
@@ -253,5 +245,32 @@ class Asset extends Model
     public function hasPendingDeletionRequest(): bool
     {
         return $this->delete_request_status === 'pending';
+    }
+
+    public function getIsPastUsefulLifeAttribute(): bool
+    {
+        if ($this->is_draft || !$this->date_of_purchase || $this->useful_life_months === null) {
+            return false;
+        }
+
+        $monthsElapsed = $this->calculateMonthsElapsed();
+
+        return $monthsElapsed >= (int) $this->useful_life_months;
+    }
+
+    private function calculateMonthsElapsed(): int
+    {
+        $purchaseDate = $this->date_of_purchase instanceof Carbon
+            ? $this->date_of_purchase
+            : Carbon::parse($this->date_of_purchase);
+
+        $asOf = now();
+        // Full months only: subtract one if current day hasn't reached purchase day.
+        $monthsElapsed = ($asOf->year - $purchaseDate->year) * 12 + ($asOf->month - $purchaseDate->month);
+        if ($asOf->day < $purchaseDate->day) {
+            $monthsElapsed -= 1;
+        }
+
+        return max($monthsElapsed, 0);
     }
 }

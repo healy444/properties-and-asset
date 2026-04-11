@@ -91,6 +91,9 @@ const AssetDetailsDrawer: React.FC<AssetDetailsDrawerProps> = ({ id, visible, on
                         <Descriptions.Item label="Type">{(asset as any).assetType?.name || (asset as any).asset_type?.name || '-'}</Descriptions.Item>
                         <Descriptions.Item label="Model">{asset.model_number}</Descriptions.Item>
                         <Descriptions.Item label="Serial">{asset.serial_number || '-'}</Descriptions.Item>
+                        {asset.quantity !== null && asset.quantity !== undefined && (
+                            <Descriptions.Item label="Quantity">{asset.quantity}</Descriptions.Item>
+                        )}
                         <Descriptions.Item label="Condition">
                             <Tag color={asset.condition === 'poor' || asset.condition === 'obsolete' ? 'error' : 'processing'}>
                                 {asset.condition.toUpperCase()}
@@ -101,6 +104,9 @@ const AssetDetailsDrawer: React.FC<AssetDetailsDrawerProps> = ({ id, visible, on
                     <Descriptions title="Financials" bordered column={isMobile ? 1 : 2}>
                         <Descriptions.Item label="Purchase Date">
                             {asset.date_of_purchase ? dayjs(asset.date_of_purchase).format('YYYY-MM-DD') : '-'}
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Useful Life Status">
+                            {asset.is_past_useful_life ? <Tag color="warning">Past Useful Life</Tag> : <Tag color="success">Within Useful Life</Tag>}
                         </Descriptions.Item>
                         <Descriptions.Item label="Cost">
                             ₱{Number(asset.acquisition_cost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

@@ -53,6 +53,7 @@ class DashboardController extends Controller
         $totalAssets = (clone $assetBaseQuery)->where('is_draft', false)->count();
         $activeAssets = (clone $assetBaseQuery)->where('is_draft', false)->where('asset_status', 'active')->count();
         $inactiveAssets = (clone $assetBaseQuery)->where('is_draft', false)->where('asset_status', 'inactive')->count();
+        $retiredAssets = (clone $assetBaseQuery)->where('is_draft', false)->where('asset_status', 'retired')->count();
         // User asked for "Active and Inactive" based on asset_status, excluding drafts.
 
         // 2. Total Acquisition Cost
@@ -207,6 +208,7 @@ class DashboardController extends Controller
             'total_assets' => $totalAssets,
             'active_assets' => $activeAssets,
             'inactive_assets' => $inactiveAssets,
+            'retired_assets' => $retiredAssets,
             'acquisition_cost' => $totalAcquisitionCost,
             'total_depreciation' => $totalDepreciation,
             'monthly_depreciation_expense' => $monthlyDepreciationExpense,

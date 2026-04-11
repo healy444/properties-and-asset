@@ -76,14 +76,16 @@ export interface Asset {
     supplier_id?: number;
     model_number: string;
     serial_number?: string;
+    quantity?: number | null;
     date_of_purchase?: string | null;
     acquisition_cost: number;
     useful_life_months?: number | null;
     monthly_depreciation: number;
     accumulated_depreciation?: number | null;
     book_value?: number | null;
+    is_past_useful_life?: boolean;
     condition: string;
-    asset_status?: 'active' | 'inactive';
+    asset_status?: 'active' | 'inactive' | 'retired';
     remarks?: string;
     assigned_to?: string;
     is_draft: boolean;

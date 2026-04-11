@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Card, Input, Select, Button, Space, Tag, Typography, message, Badge, Modal, Radio, Upload, Tooltip, Pagination } from 'antd';
+import { Table, Card, Input, Select, Button, Space, Tag, Typography, message, Badge, Modal, Radio, Upload, Tooltip, Pagination, Checkbox, Tabs } from 'antd';
 import type { Breakpoint } from 'antd/es/_util/responsiveObserver';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, SearchOutlined, EyeOutlined, EditOutlined, DeleteOutlined, CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined, DownloadOutlined, RollbackOutlined, UploadOutlined, ReloadOutlined } from '@ant-design/icons';
@@ -30,6 +30,28 @@ const AssetListPage: React.FC = () => {
     const [importFile, setImportFile] = useState<File | null>(null);
     const [exportFormat, setExportFormat] = useState<'csv' | 'xlsx'>('csv');
     const [exportType, setExportType] = useState<'table' | 'sticker'>('table');
+    const exportColumnOptions = [
+        { label: 'Asset Code', value: 'asset_code' },
+        { label: 'Division', value: 'division' },
+        { label: 'Branch', value: 'branch' },
+        { label: 'Category', value: 'category' },
+        { label: 'Type', value: 'type' },
+        { label: 'Brand', value: 'brand' },
+        { label: 'Model', value: 'model_number' },
+        { label: 'Serial Number', value: 'serial_number' },
+        { label: 'Quantity', value: 'quantity' },
+        { label: 'Acquisition Cost', value: 'acquisition_cost' },
+        { label: 'Accumulated Depreciation', value: 'accumulated_depreciation' },
+        { label: 'Book Value', value: 'book_value' },
+        { label: 'Useful Life (Months)', value: 'useful_life_months' },
+        { label: 'Monthly Depreciation', value: 'monthly_depreciation' },
+        { label: 'Condition', value: 'condition' },
+        { label: 'Date of Purchase', value: 'date_of_purchase' },
+        { label: 'Status', value: 'status' },
+    ];
+    const [exportColumns, setExportColumns] = useState<string[]>(
+        exportColumnOptions.map(option => option.value),
+    );
     const [templateFormat, setTemplateFormat] = useState<'csv' | 'xlsx'>('csv');
 
     const initialStatus = searchParams.get('status') || undefined;
@@ -148,6 +170,7 @@ const AssetListPage: React.FC = () => {
                     page: undefined,
                     per_page: undefined,
                     format,
+                    columns: exportColumns,
                 },
                 responseType: 'blob',
             });
@@ -271,6 +294,10 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
 
     const handleExportConfirm = () => {
         if (exportType === 'table') {
+            if (exportColumns.length === 0) {
+                message.error('Please select at least one column for export.');
+                return;
+            }
             exportMutation.mutate(exportFormat);
         } else {
             handleStickerExport();
@@ -318,6 +345,28 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
             message.error({ content: 'Failed to refresh data.', key, duration: 2 });
         }
     };
+
+    const statusTabs = [
+        { key: 'active', label: 'Active' },
+        { key: 'inactive', label: 'Inactive' },
+        { key: 'retired', label: 'Retired' },
+        { key: 'draft', label: 'Draft' },
+        ...((isAdmin || isBranchCustodian) ? [{ key: 'pending_review', label: isAdmin ? 'Pending Review' : 'Submitted for Review' }] : []),
+        ...(isAdmin ? [{ key: 'deletion', label: 'Deletion Requests / Trash' }] : []),
+    ];
+
+    const activeStatusKey =
+        params.deletion_view === 'all'
+            ? 'deletion'
+            : params.status === 'pending_review'
+                ? 'pending_review'
+                : params.status === 'draft'
+                    ? 'draft'
+                    : params.status === 'inactive'
+                        ? 'inactive'
+                        : params.status === 'retired'
+                            ? 'retired'
+                            : 'active';
 
     const handleRequestDelete = (id: number) => {
         // Admin/super admin: direct delete (no request flow)
@@ -391,10 +440,21 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
         if (record.is_draft) {
             return <Badge status="warning" text="Draft" />;
         }
-        if (record.asset_status === 'inactive') {
-            return <Badge status="default" text="Inactive" />;
+        const statusBadge =
+            record.asset_status === 'retired'
+                ? <Badge status="warning" text="Retired" />
+                : record.asset_status === 'inactive'
+                    ? <Badge status="default" text="Inactive" />
+                    : <Badge status="success" text="Active" />;
+        if (record.is_past_useful_life) {
+            return (
+                <Space size={6} wrap>
+                    {statusBadge}
+                    <Tag color="warning">Past Useful Life</Tag>
+                </Space>
+            );
         }
-        return <Badge status="success" text="Active" />;
+        return statusBadge;
     };
 
     const renderActions = (record: Asset) => {
@@ -637,6 +697,34 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                         </Button>
                     </Space>
                 </div>
+                <Tabs
+                    activeKey={activeStatusKey}
+                    items={statusTabs}
+                    onChange={(val) => {
+                        if (val === 'pending_review') {
+                            setParams({ ...params, status: 'pending_review' as any, deletion_view: undefined, page: 1 });
+                            return;
+                        }
+                        if (val === 'draft') {
+                            setParams({ ...params, status: 'draft' as any, deletion_view: undefined, page: 1 });
+                            return;
+                        }
+                        if (val === 'inactive') {
+                            setParams({ ...params, status: 'inactive' as any, deletion_view: undefined, page: 1 });
+                            return;
+                        }
+                        if (val === 'retired') {
+                            setParams({ ...params, status: 'retired' as any, deletion_view: undefined, page: 1 });
+                            return;
+                        }
+                        if (val === 'deletion' && (user?.role === 'admin' || user?.role === 'super_admin')) {
+                            setParams({ ...params, status: undefined as any, deletion_view: 'all', page: 1 });
+                            return;
+                        }
+                        setParams({ ...params, status: 'active' as any, deletion_view: undefined, page: 1 });
+                    }}
+                    style={{ marginBottom: 12 }}
+                />
                 <Space wrap style={{ marginBottom: 16 }} className="asset-list__filters">
                     <Input
                         placeholder="Search by code, model..."
@@ -671,49 +759,6 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                         allowClear
                         options={categories.data?.map(c => ({ label: c.name, value: c.id }))}
                         onChange={(val) => setParams({ ...params, category_id: val })}
-                    />
-                    <Select
-                        placeholder="Status"
-                        className="asset-list__filter asset-list__filter--status"
-                        allowClear
-                        options={[
-                            { label: 'Active (Default)', value: 'active' },
-                            { label: 'Inactive', value: 'inactive' },
-                            { label: 'Draft', value: 'draft' },
-                            ...((isAdmin || isBranchCustodian) ? [{ label: isAdmin ? 'Pending Review' : 'Submitted for Review', value: 'pending_review' }] : []),
-                            ...(isAdmin ? [{ label: 'Deletion Requests / Trash', value: 'deletion' }] : []),
-                        ]}
-                        value={
-                            params.deletion_view === 'all'
-                                ? 'deletion'
-                                : params.status === 'pending_review'
-                                    ? 'pending_review'
-                                : params.status === 'draft'
-                                    ? 'draft'
-                                    : params.status === 'inactive'
-                                        ? 'inactive'
-                                        : 'active'
-                        }
-                        onChange={(val) => {
-                            if (val === 'pending_review') {
-                                setParams({ ...params, status: 'pending_review' as any, deletion_view: undefined, page: 1 });
-                                return;
-                            }
-                            if (val === 'draft') {
-                                setParams({ ...params, status: 'draft' as any, deletion_view: undefined, page: 1 });
-                                return;
-                            }
-                            if (val === 'inactive') {
-                                setParams({ ...params, status: 'inactive' as any, deletion_view: undefined, page: 1 });
-                                return;
-                            }
-                            if (val === 'deletion' && (user?.role === 'admin' || user?.role === 'super_admin')) {
-                                setParams({ ...params, status: undefined as any, deletion_view: 'all', page: 1 });
-                                return;
-                            }
-                            // Default to active
-                            setParams({ ...params, status: 'active' as any, deletion_view: undefined, page: 1 });
-                        }}
                     />
                     <Button
                         icon={<ReloadOutlined />}
@@ -809,6 +854,14 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                                 <Radio value="csv">CSV</Radio>
                                 <Radio value="xlsx">XLSX</Radio>
                             </Radio.Group>
+                            <div style={{ marginTop: 16 }}>
+                                <div style={{ marginBottom: 8, fontWeight: 500 }}>Columns</div>
+                                <Checkbox.Group
+                                    options={exportColumnOptions}
+                                    value={exportColumns}
+                                    onChange={(values) => setExportColumns(values as string[])}
+                                />
+                            </div>
                         </div>
                     )}
 
@@ -832,7 +885,14 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                         message.error('Please select a file to upload.');
                         return;
                     }
-                    importMutation.mutate(importFile);
+                    confirm({
+                        title: 'Import assets?',
+                        content: 'This will upload and import the selected file.',
+                        okText: 'Import',
+                        onOk() {
+                            return importMutation.mutateAsync(importFile);
+                        },
+                    });
                 }}
                 okText="Upload"
                 confirmLoading={importMutation.isPending}

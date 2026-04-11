@@ -41,7 +41,9 @@ class AssetImport implements ToCollection, WithHeadingRow
         $branches = Branch::all();
         $branchMap = $branches->mapWithKeys(fn($branch) => [$normalizeVal($branch->name) => $branch->id]);
         $branchDivisionMap = $branches->mapWithKeys(fn($branch) => [$branch->id => $branch->division_id]);
-        $categoryMap = Category::all()->mapWithKeys(fn($category) => [$normalizeVal($category->name) => $category->id]);
+        $categories = Category::all(['id', 'name', 'code']);
+        $categoryMap = $categories->mapWithKeys(fn($category) => [$normalizeVal($category->name) => $category->id]);
+        $categoryCodeMap = $categories->mapWithKeys(fn($category) => [$category->id => $category->code]);
         $typeMap = AssetType::all()->mapWithKeys(fn($type) => [$normalizeVal($type->name) => $type->id]);
         $brandMap = Brand::all()->mapWithKeys(fn($brand) => [$normalizeVal($brand->name) => $brand->id]);
         $supplierMap = \App\Models\Supplier::all()->mapWithKeys(fn($supplier) => [$normalizeVal($supplier->name) => $supplier->id]);
@@ -89,6 +91,7 @@ class AssetImport implements ToCollection, WithHeadingRow
             $brandName = $normalizeVal($getValue(['brand', 'brandname', 'make']) ?? '');
             $modelNumber = $getValue(['modelnumber', 'model', 'model_number']);
             $serialNumber = $getValue(['serialnumber', 'serial', 'serial_number']);
+            $quantity = $getValue(['quantity', 'qty']);
             $supplierName = $normalizeVal($getValue(['supplier', 'suppliername', 'vendor']) ?? '');
             $assignedTo = $getValue(['assignedto', 'assigned_to']);
             $remarks = $getValue(['remarks', 'remark', 'notes']);
@@ -166,6 +169,10 @@ class AssetImport implements ToCollection, WithHeadingRow
                 $rowErrors[] = "Row {$rowNumber}: Condition must be Good, Fair, Poor, or Obsolete.";
             }
 
+            if ($status !== '' && !in_array($status, ['active', 'inactive', 'retired', 'draft'], true)) {
+                $rowErrors[] = "Row {$rowNumber}: Status must be Active, Inactive, Retired, or Draft.";
+            }
+
             if ($acquisitionCost === null || trim((string) $acquisitionCost) === '') {
                 $rowErrors[] = "Row {$rowNumber}: Acquisition cost is required.";
             } elseif (!is_numeric($acquisitionCost) || (float) $acquisitionCost < 0) {
@@ -174,6 +181,14 @@ class AssetImport implements ToCollection, WithHeadingRow
 
             if ($usefulLifeMonths !== null && (!is_numeric($usefulLifeMonths) || (int) $usefulLifeMonths < 1)) {
                 $rowErrors[] = "Row {$rowNumber}: Useful life months must be at least 1.";
+            }
+            if ($quantity !== null && trim((string) $quantity) !== '') {
+                if (!is_numeric($quantity) || (int) $quantity < 1) {
+                    $rowErrors[] = "Row {$rowNumber}: Quantity must be at least 1.";
+                }
+                if ($categoryId && ($categoryCodeMap->get($categoryId) !== 'FUR')) {
+                    $rowErrors[] = "Row {$rowNumber}: Quantity is only allowed for Furniture & Fixtures assets.";
+                }
             }
 
             $dateOfPurchase = null;
@@ -197,7 +212,7 @@ class AssetImport implements ToCollection, WithHeadingRow
             }
 
             $isDraft = $status === 'draft';
-            $assetStatus = $status === 'inactive' ? 'inactive' : 'active';
+            $assetStatus = in_array($status, ['inactive', 'retired'], true) ? $status : 'active';
             $submittedForReviewAt = null;
 
             if ($isCustodian) {
@@ -207,7 +222,7 @@ class AssetImport implements ToCollection, WithHeadingRow
             } elseif ($isAdmin) {
                 $isDraft = false;
                 $submittedForReviewAt = null;
-                $assetStatus = 'active';
+                $assetStatus = in_array($status, ['inactive', 'retired'], true) ? $status : 'active';
             }
 
             $condition = (string) $condition;
@@ -217,6 +232,7 @@ class AssetImport implements ToCollection, WithHeadingRow
                 'branch_id' => $branchId,
                 'category_id' => $categoryMap->get($categoryName),
                 'asset_type_id' => $typeMap->get($typeName),
+                'quantity' => $quantity !== null && trim((string) $quantity) !== '' ? (int) $quantity : null,
                 'brand_id' => $brandId,
                 'supplier_id' => $supplierId,
                 'model_number' => $modelNumber ? trim((string) $modelNumber) : null,

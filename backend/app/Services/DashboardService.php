@@ -67,6 +67,10 @@ class DashboardService
             ->where('asset_status', 'active')
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->count();
+        $retired = Asset::where('is_draft', false)
+            ->where('asset_status', 'retired')
+            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+            ->count();
         $pendingDeletion = Asset::where('delete_request_status', 'pending')
             ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
             ->count();
@@ -74,6 +78,7 @@ class DashboardService
         return [
             ['status' => 'Draft', 'count' => $drafts],
             ['status' => 'Active', 'count' => $active],
+            ['status' => 'Retired', 'count' => $retired],
             ['status' => 'Pending Deletion', 'count' => $pendingDeletion],
         ];
     }

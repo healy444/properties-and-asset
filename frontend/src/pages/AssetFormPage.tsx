@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Input, InputNumber, DatePicker, Select, Button, Card, Space, Typography, message, Divider, Checkbox, Collapse, Tooltip } from 'antd';
+import { Form, Input, InputNumber, DatePicker, Select, Button, Card, Space, Typography, message, Divider, Checkbox, Collapse, Tooltip, Modal } from 'antd';
 import { SaveOutlined, SendOutlined, ArrowLeftOutlined, RightCircleOutlined } from '@ant-design/icons';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -18,12 +18,14 @@ const AssetFormPage: React.FC = () => {
     const queryClient = useQueryClient();
     const [form] = Form.useForm();
     const { divisions, branches, categories, assetTypes, brands, suppliers } = useReferences();
-    const [isDraft, setIsDraft] = useState(true);
+    const [isDraft, setIsDraft] = useState(false);
     const [submitIntent, setSubmitIntent] = useState<'draft' | 'review' | 'default'>('default');
     const selectedCategoryId = Form.useWatch('category_id', form);
     const selectedDivisionId = Form.useWatch('division_id', form);
     const selectedBranchId = Form.useWatch('branch_id', form);
     const selectedCondition = Form.useWatch('condition', form);
+    const selectedCategory = categories.data?.find(c => c.id === selectedCategoryId);
+    const isFurnitureCategory = selectedCategory?.code === 'FUR';
     const isEdit = !!id;
     const { user: currentUser } = useAuth();
     const isSuperAdmin = currentUser?.role === 'super_admin';
@@ -125,7 +127,7 @@ const AssetFormPage: React.FC = () => {
         },
     });
 
-    const onFinish = (values: any) => {
+    const buildPayload = (values: any) => {
         // Base payload
         let payload: any = {
             ...values,
@@ -149,6 +151,22 @@ const AssetFormPage: React.FC = () => {
                 branch_id: values.branch_id,
                 is_draft: false,
             };
+        }
+
+        return payload;
+    };
+
+    const onFinish = (values: any) => {
+        const payload = buildPayload(values);
+
+        if (!id) {
+            Modal.confirm({
+                title: 'Create new asset?',
+                content: 'Please confirm you want to create this asset.',
+                okText: 'Create',
+                onOk: () => mutation.mutate(payload),
+            });
+            return;
         }
 
         mutation.mutate(payload);
@@ -181,6 +199,12 @@ const AssetFormPage: React.FC = () => {
         }
     }, [branches.data, selectedDivisionId, form]);
 
+    useEffect(() => {
+        if (!isFurnitureCategory && form.getFieldValue('quantity') !== undefined) {
+            form.setFieldsValue({ quantity: undefined });
+        }
+    }, [isFurnitureCategory, form]);
+
     return (
         <Card loading={isLoading}>
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
@@ -197,7 +221,7 @@ const AssetFormPage: React.FC = () => {
                     form={form}
                     layout="vertical"
                     onFinish={onFinish}
-                    initialValues={{ is_draft: true, asset_status: 'active' }}
+                    initialValues={{ is_draft: false, asset_status: 'active' }}
                     disabled={mutation.isPending}
                 >
                     <div className="asset-form__grid asset-form__grid--four">
@@ -245,7 +269,7 @@ const AssetFormPage: React.FC = () => {
                             key="ident"
                             style={{ padding: 0 }}
                         >
-                            <div className="asset-form__grid asset-form__grid--three asset-form__grid--padded">
+                            <div className={`asset-form__grid ${isFurnitureCategory ? 'asset-form__grid--four' : 'asset-form__grid--three'} asset-form__grid--padded`}>
                                 <Form.Item name="brand_id" label="Brand">
                                     <Select allowClear options={brands.data?.map(b => ({ label: b.name, value: b.id }))} disabled={isIdentFinReadOnly} />
                                 </Form.Item>
@@ -255,6 +279,11 @@ const AssetFormPage: React.FC = () => {
                                 <Form.Item name="serial_number" label="Serial Number">
                                     <Input disabled={isIdentFinReadOnly} />
                                 </Form.Item>
+                                {isFurnitureCategory && (
+                                    <Form.Item name="quantity" label="Quantity">
+                                        <InputNumber min={1} style={{ width: '100%' }} disabled={isIdentFinReadOnly} />
+                                    </Form.Item>
+                                )}
                             </div>
                         </Collapse.Panel>
 
@@ -298,6 +327,7 @@ const AssetFormPage: React.FC = () => {
                             <Select options={[
                                 { label: 'Active', value: 'active' },
                                 { label: 'Inactive', value: 'inactive' },
+                                { label: 'Retired', value: 'retired' },
                             ]} disabled={selectedCondition === 'obsolete'} />
                         </Form.Item>
                         <Form.Item name="assigned_to" label="Assigned To">

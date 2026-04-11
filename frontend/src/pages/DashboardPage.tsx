@@ -377,9 +377,10 @@ const DashboardPage: React.FC = () => {
                             value={stats.total_assets}
                             prefix={<ShopOutlined />}
                         />
-                        <div style={{ marginTop: 10, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
+                        <div style={{ marginTop: 10, fontSize: 13, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             <Tag color="success">Active: {stats.active_assets}</Tag>
                             <Tag color="default">Inactive: {stats.inactive_assets}</Tag>
+                            <Tag color="warning">Retired: {stats.retired_assets}</Tag>
                         </div>
                     </Card>
                     <Card bordered={false} hoverable style={elevatedCardStyle} bodyStyle={{ padding: '16px 18px' }}>

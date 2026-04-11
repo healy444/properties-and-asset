@@ -610,7 +610,14 @@ const ReferenceManagementPage: React.FC = () => {
                         message.error('Please select a file to upload.');
                         return;
                     }
-                    importMutation.mutate(importFile);
+                    Modal.confirm({
+                        title: `Import ${configs[activeTab].label}?`,
+                        content: 'This will upload and import the selected file.',
+                        okText: 'Import',
+                        onOk() {
+                            return importMutation.mutateAsync(importFile);
+                        },
+                    });
                 }}
                 okText="Upload"
                 confirmLoading={importMutation.isPending}

@@ -23,6 +23,7 @@ class AssetImportTemplateExport implements FromCollection, WithHeadings
             'BRAND',
             'MODEL NUMBER',
             'SERIAL NUMBER',
+            'QUANTITY',
             'DATE OF PURCHASE',
             'ACQUISITION COST',
             'USEFUL LIFE',
