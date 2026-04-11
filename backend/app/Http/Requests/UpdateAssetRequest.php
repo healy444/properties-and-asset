@@ -36,7 +36,7 @@ class UpdateAssetRequest extends FormRequest
             'acquisition_cost' => 'sometimes|numeric|min:0',
             'useful_life_months' => 'sometimes|nullable|integer|min:1',
             'condition' => 'sometimes|in:good,fair,poor,obsolete',
-            'asset_status' => 'sometimes|in:active,inactive,retired',
+            'asset_status' => 'sometimes|in:active,retired',
             'remarks' => 'nullable|string',
             'assigned_to' => 'nullable|string',
             'is_draft' => 'boolean',

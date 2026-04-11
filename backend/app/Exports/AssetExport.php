@@ -45,9 +45,6 @@ class AssetExport implements FromQuery, WithHeadings, WithMapping
                 if ($status === 'active') {
                     return $q->active();
                 }
-                if ($status === 'inactive') {
-                    return $q->where('is_draft', false)->where('asset_status', 'inactive');
-                }
                 if ($status === 'retired') {
                     return $q->where('is_draft', false)->where('asset_status', 'retired');
                 }

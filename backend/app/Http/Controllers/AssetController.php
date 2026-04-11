@@ -85,9 +85,6 @@ class AssetController extends Controller
                 if ($request->status === 'active') {
                     return $q->active()->whereIn('delete_request_status', ['none', 'rejected']);
                 }
-                if ($request->status === 'inactive') {
-                    return $q->where('is_draft', false)->where('asset_status', 'inactive');
-                }
                 if ($request->status === 'retired') {
                     return $q->where('is_draft', false)->where('asset_status', 'retired');
                 }

@@ -4,7 +4,6 @@ import api from '../api/axios';
 export interface DashboardStats {
     total_assets: number;
     active_assets: number;
-    inactive_assets: number;
     retired_assets: number;
     acquisition_cost: number;
     total_depreciation: number;

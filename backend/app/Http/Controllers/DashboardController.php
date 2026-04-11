@@ -52,9 +52,8 @@ class DashboardController extends Controller
         // 1. Total Assets
         $totalAssets = (clone $assetBaseQuery)->where('is_draft', false)->count();
         $activeAssets = (clone $assetBaseQuery)->where('is_draft', false)->where('asset_status', 'active')->count();
-        $inactiveAssets = (clone $assetBaseQuery)->where('is_draft', false)->where('asset_status', 'inactive')->count();
         $retiredAssets = (clone $assetBaseQuery)->where('is_draft', false)->where('asset_status', 'retired')->count();
-        // User asked for "Active and Inactive" based on asset_status, excluding drafts.
+        // User asked for "Active and Retired" based on asset_status, excluding drafts.
 
         // 2. Total Acquisition Cost
         $totalAcquisitionCost = (clone $assetBaseQuery)->where('is_draft', false)->where('asset_status', 'active')->sum('acquisition_cost');
@@ -207,7 +206,6 @@ class DashboardController extends Controller
         return response()->json([
             'total_assets' => $totalAssets,
             'active_assets' => $activeAssets,
-            'inactive_assets' => $inactiveAssets,
             'retired_assets' => $retiredAssets,
             'acquisition_cost' => $totalAcquisitionCost,
             'total_depreciation' => $totalDepreciation,

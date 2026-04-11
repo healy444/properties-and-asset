@@ -54,7 +54,9 @@ const AssetListPage: React.FC = () => {
     );
     const [templateFormat, setTemplateFormat] = useState<'csv' | 'xlsx'>('csv');
 
-    const initialStatus = searchParams.get('status') || undefined;
+    const allowedStatusParams = new Set(['active', 'retired', 'draft', 'pending_review']);
+    const rawStatusParam = searchParams.get('status') || undefined;
+    const initialStatus = rawStatusParam && allowedStatusParams.has(rawStatusParam) ? rawStatusParam : undefined;
 
     const [params, setParams] = useState({
         page: 1,
@@ -348,7 +350,6 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
 
     const statusTabs = [
         { key: 'active', label: 'Active' },
-        { key: 'inactive', label: 'Inactive' },
         { key: 'retired', label: 'Retired' },
         { key: 'draft', label: 'Draft' },
         ...((isAdmin || isBranchCustodian) ? [{ key: 'pending_review', label: isAdmin ? 'Pending Review' : 'Submitted for Review' }] : []),
@@ -358,12 +359,10 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
     const activeStatusKey =
         params.deletion_view === 'all'
             ? 'deletion'
-            : params.status === 'pending_review'
-                ? 'pending_review'
-                : params.status === 'draft'
-                    ? 'draft'
-                    : params.status === 'inactive'
-                        ? 'inactive'
+                : params.status === 'pending_review'
+                    ? 'pending_review'
+                    : params.status === 'draft'
+                        ? 'draft'
                         : params.status === 'retired'
                             ? 'retired'
                             : 'active';
@@ -443,9 +442,7 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
         const statusBadge =
             record.asset_status === 'retired'
                 ? <Badge status="warning" text="Retired" />
-                : record.asset_status === 'inactive'
-                    ? <Badge status="default" text="Inactive" />
-                    : <Badge status="success" text="Active" />;
+                : <Badge status="success" text="Active" />;
         if (record.is_past_useful_life) {
             return (
                 <Space size={6} wrap>
@@ -707,10 +704,6 @@ body { font-family: Arial, sans-serif; margin: 0; padding: 8mm; }
                         }
                         if (val === 'draft') {
                             setParams({ ...params, status: 'draft' as any, deletion_view: undefined, page: 1 });
-                            return;
-                        }
-                        if (val === 'inactive') {
-                            setParams({ ...params, status: 'inactive' as any, deletion_view: undefined, page: 1 });
                             return;
                         }
                         if (val === 'retired') {

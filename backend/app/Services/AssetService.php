@@ -61,7 +61,7 @@ class AssetService
             $isDraft = (bool) ($data['is_draft'] ?? false);
             $data['asset_status'] = $data['asset_status'] ?? 'active';
             if (($data['condition'] ?? null) === 'obsolete') {
-                $data['asset_status'] = 'inactive';
+                $data['asset_status'] = 'retired';
             }
 
             if (!$isDraft) {
@@ -137,7 +137,7 @@ class AssetService
             }
 
             if (($data['condition'] ?? null) === 'obsolete') {
-                $data['asset_status'] = 'inactive';
+                $data['asset_status'] = 'retired';
             }
 
             if ($branchId) {

@@ -36,7 +36,7 @@ class StoreAssetRequest extends FormRequest
             'acquisition_cost' => 'required|numeric|min:0',
             'useful_life_months' => 'nullable|integer|min:1',
             'condition' => 'required|in:good,fair,poor,obsolete',
-            'asset_status' => 'nullable|in:active,inactive,retired',
+            'asset_status' => 'nullable|in:active,retired',
             'remarks' => 'nullable|string',
             'assigned_to' => 'nullable|string',
             'is_draft' => 'boolean',

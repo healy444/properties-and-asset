@@ -85,7 +85,7 @@ export interface Asset {
     book_value?: number | null;
     is_past_useful_life?: boolean;
     condition: string;
-    asset_status?: 'active' | 'inactive' | 'retired';
+    asset_status?: 'active' | 'retired';
     remarks?: string;
     assigned_to?: string;
     is_draft: boolean;

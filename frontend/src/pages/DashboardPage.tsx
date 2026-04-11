@@ -379,7 +379,6 @@ const DashboardPage: React.FC = () => {
                         />
                         <div style={{ marginTop: 10, fontSize: 13, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                             <Tag color="success">Active: {stats.active_assets}</Tag>
-                            <Tag color="default">Inactive: {stats.inactive_assets}</Tag>
                             <Tag color="warning">Retired: {stats.retired_assets}</Tag>
                         </div>
                     </Card>

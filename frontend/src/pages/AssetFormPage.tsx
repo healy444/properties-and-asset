@@ -318,7 +318,7 @@ const AssetFormPage: React.FC = () => {
                                 ]}
                                 onChange={(value) => {
                                     if (value === 'obsolete') {
-                                        form.setFieldsValue({ asset_status: 'inactive' });
+                                        form.setFieldsValue({ asset_status: 'retired' });
                                     }
                                 }}
                             />
@@ -326,7 +326,6 @@ const AssetFormPage: React.FC = () => {
                         <Form.Item name="asset_status" label="Asset Status">
                             <Select options={[
                                 { label: 'Active', value: 'active' },
-                                { label: 'Inactive', value: 'inactive' },
                                 { label: 'Retired', value: 'retired' },
                             ]} disabled={selectedCondition === 'obsolete'} />
                         </Form.Item>

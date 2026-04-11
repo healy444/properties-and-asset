@@ -169,8 +169,8 @@ class AssetImport implements ToCollection, WithHeadingRow
                 $rowErrors[] = "Row {$rowNumber}: Condition must be Good, Fair, Poor, or Obsolete.";
             }
 
-            if ($status !== '' && !in_array($status, ['active', 'inactive', 'retired', 'draft'], true)) {
-                $rowErrors[] = "Row {$rowNumber}: Status must be Active, Inactive, Retired, or Draft.";
+            if ($status !== '' && !in_array($status, ['active', 'retired', 'draft'], true)) {
+                $rowErrors[] = "Row {$rowNumber}: Status must be Active, Retired, or Draft.";
             }
 
             if ($acquisitionCost === null || trim((string) $acquisitionCost) === '') {
@@ -212,7 +212,7 @@ class AssetImport implements ToCollection, WithHeadingRow
             }
 
             $isDraft = $status === 'draft';
-            $assetStatus = in_array($status, ['inactive', 'retired'], true) ? $status : 'active';
+            $assetStatus = $status === 'retired' ? $status : 'active';
             $submittedForReviewAt = null;
 
             if ($isCustodian) {
@@ -222,7 +222,7 @@ class AssetImport implements ToCollection, WithHeadingRow
             } elseif ($isAdmin) {
                 $isDraft = false;
                 $submittedForReviewAt = null;
-                $assetStatus = in_array($status, ['inactive', 'retired'], true) ? $status : 'active';
+                $assetStatus = $status === 'retired' ? $status : 'active';
             }
 
             $condition = (string) $condition;
